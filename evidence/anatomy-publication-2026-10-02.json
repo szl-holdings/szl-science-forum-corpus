@@ -1,0 +1,45 @@
+{
+  "schema": "szl.forum-corpus.anatomy-provider-readback/v1",
+  "observed_at": "2026-10-02T23:08:49Z",
+  "state": "SOURCE_BOUND_LIVE_READ_BACK",
+  "workflow": {
+    "url": "https://github.com/szl-holdings/anatomy/actions/runs/37075907043",
+    "conclusion": "success",
+    "anatomy_source_revision": "a078ebc15e586cbb9e4e7cfb063fc715456ba9ee",
+    "second_brain_source_revision": "4f45d201be0b3334c26cf9cb5fe7161f65a229d7"
+  },
+  "provider": {
+    "repository": "https://huggingface.co/spaces/betterwithage/anatomy",
+    "revision": "e72da1584406e068c99dc7701725a89eb4261962",
+    "private": false,
+    "runtime_stage": "RUNNING",
+    "live_base": "https://betterwithage-anatomy.hf.space"
+  },
+  "brain_health": {
+    "ready": true,
+    "source_revision": "4f45d201be0b3334c26cf9cb5fe7161f65a229d7",
+    "public_chunk_count": 575,
+    "frontier_source_count": 8,
+    "frontier_candidate_count": 130,
+    "candidate_set_sha256": "85d3f0d422d1bd0988e2a7d83d4823db7e043a3e7454c3453dba129c27e5414a",
+    "verification_state": "STRUCTURAL_ONLY",
+    "content_access": "HANDLES_ONLY",
+    "training_authority": "NONE",
+    "promotion_authority": "NONE",
+    "execution_authority": "NONE",
+    "lambda_state": "CONJECTURE_1"
+  },
+  "forum_query": {
+    "repository_filter": "szl-holdings/szl-science-forum-corpus",
+    "filtered_candidate_count": 1,
+    "returned_handle_count": 1,
+    "node_id": "frontier:bedc9beed3ef0470a6b62139c536cca1",
+    "source_revision": "ac85ddde85c1ae494803c2b16421688c6d3fe7de",
+    "candidate_state": "DISCOVERED_REVIEW_REQUIRED",
+    "content_access": "HANDLES_ONLY",
+    "content_field_present": false
+  },
+  "raw_frontier_file_http_status": 404,
+  "model_training_authorized": false,
+  "scientific_efficacy_evaluated": false
+}
