@@ -52,7 +52,7 @@ jobs:
         run: python -m pip install --disable-pip-version-check huggingface_hub==1.33.0
       - name: Publish exact main and read back every byte
         env:
-          HF_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
           SZL_HF_PUBLISH_APPROVED: "1"
           EXPECTED_GIT_SHA: ${{ inputs.expected_git_sha }}
         run: python -B -m scripts.publish_hf --publish --expected-sha "$EXPECTED_GIT_SHA"
