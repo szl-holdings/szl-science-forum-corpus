@@ -1,0 +1,34 @@
+[
+  {
+    "independent_topic_count": 1,
+    "inference": "descriptive_observation_only",
+    "need_id": "artifact_replay",
+    "source_ids": [
+      "ai4science:426:1"
+    ]
+  },
+  {
+    "independent_topic_count": 1,
+    "inference": "descriptive_observation_only",
+    "need_id": "blocked_allocation",
+    "source_ids": [
+      "ai4science:426:1"
+    ]
+  },
+  {
+    "independent_topic_count": 1,
+    "inference": "descriptive_observation_only",
+    "need_id": "measurement_harmonization",
+    "source_ids": [
+      "ai4science:426:1"
+    ]
+  },
+  {
+    "independent_topic_count": 1,
+    "inference": "descriptive_observation_only",
+    "need_id": "skill_import_provenance",
+    "source_ids": [
+      "ai4science:426:1"
+    ]
+  }
+]

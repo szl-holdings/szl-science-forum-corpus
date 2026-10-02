@@ -1,0 +1,17 @@
+{
+  "as_of": "2026-10-02",
+  "files_sha256": {
+    "graph.json": "fe51b071fd96061f47838319b8d345b01bdac0dc6f8fa2f167dd25f63b439d4d",
+    "hypotheses.json": "535e7ccb57218ad066ce9196871998d3239f406dd3ae3a482066c2aaa45aa9ba",
+    "needs.json": "bf330548f454d59b3c3519330181437167ef4410e720fb530a785a1902e1f5a0",
+    "second_brain.candidates.jsonl": "78713953ff37fddbf8b5181595b979397d33773b4e2ceb9fab1db5f91a76ae6f",
+    "sources.public.jsonl": "3edf511b4d021c7eb8286035c8fa444031abe6eb04f06e8718dc0bf29bfba0f9"
+  },
+  "independent_public_topics": 1,
+  "model_training_authorized": false,
+  "sampling": "operator_convenience_sample_not_representative",
+  "schema": "szl-science-forum-corpus-v1",
+  "source_records_public": 1,
+  "source_records_seen": 1,
+  "source_records_withheld": 0
+}

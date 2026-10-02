@@ -1,0 +1,87 @@
+{
+  "edges": [
+    {
+      "from": "source:ai4science:426:1",
+      "relation": "raises_candidate_need",
+      "to": "need:artifact_replay"
+    },
+    {
+      "from": "source:ai4science:426:1",
+      "relation": "raises_candidate_need",
+      "to": "need:blocked_allocation"
+    },
+    {
+      "from": "source:ai4science:426:1",
+      "relation": "raises_candidate_need",
+      "to": "need:measurement_harmonization"
+    },
+    {
+      "from": "source:ai4science:426:1",
+      "relation": "raises_candidate_need",
+      "to": "need:skill_import_provenance"
+    },
+    {
+      "from": "need:blocked_allocation",
+      "relation": "motivates_test",
+      "to": "hypothesis:experiment-contract"
+    },
+    {
+      "from": "need:skill_import_provenance",
+      "relation": "motivates_test",
+      "to": "hypothesis:evidence-adjudication"
+    },
+    {
+      "from": "need:artifact_replay",
+      "relation": "motivates_test",
+      "to": "hypothesis:reproduction-triage"
+    },
+    {
+      "from": "need:measurement_harmonization",
+      "relation": "motivates_test",
+      "to": "hypothesis:reproduction-triage"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "source:ai4science:426:1",
+      "type": "Source",
+      "url": "https://ai4science.discourse.group/t/three-testable-science-skills-and-provenance-aware-github-imports/426"
+    },
+    {
+      "id": "need:artifact_replay",
+      "independent_topic_count": 1,
+      "type": "Need"
+    },
+    {
+      "id": "need:blocked_allocation",
+      "independent_topic_count": 1,
+      "type": "Need"
+    },
+    {
+      "id": "need:measurement_harmonization",
+      "independent_topic_count": 1,
+      "type": "Need"
+    },
+    {
+      "id": "need:skill_import_provenance",
+      "independent_topic_count": 1,
+      "type": "Need"
+    },
+    {
+      "evidence_state": "exploratory",
+      "id": "hypothesis:experiment-contract",
+      "type": "Hypothesis"
+    },
+    {
+      "evidence_state": "exploratory",
+      "id": "hypothesis:evidence-adjudication",
+      "type": "Hypothesis"
+    },
+    {
+      "evidence_state": "exploratory",
+      "id": "hypothesis:reproduction-triage",
+      "type": "Hypothesis"
+    }
+  ],
+  "schema": "szl-science-needgraph-v1"
+}

@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "szl-science-forum-corpus"
+version = "0.1.0"
+description = "Provenance-aware, rights-gated science forum insight index"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+authors = [{name = "SZL Holdings"}]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["szl_forum_corpus*"]

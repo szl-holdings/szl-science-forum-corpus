@@ -1,0 +1,50 @@
+[
+  {
+    "baseline": "Researcher completes a structured protocol template without the skill.",
+    "evidence_state": "exploratory",
+    "failure_condition": "No improvement over the template on a sealed set, or any unsupported claim that a proposed experiment was performed.",
+    "id": "experiment-contract",
+    "intervention": "A skill drafts variables, controls, measurement, falsifier, assumptions, and the cheapest discriminating next test.",
+    "need_ids": [
+      "experiment_design",
+      "blocked_allocation"
+    ],
+    "primary_outcome": "Share of independently reviewed plans meeting every preregistered actionability criterion.",
+    "source_ids": [
+      "ai4science:426:1"
+    ],
+    "status": "proposal"
+  },
+  {
+    "baseline": "Researcher uses ordinary search and a citation checklist.",
+    "evidence_state": "exploratory",
+    "failure_condition": "Invented citations, concealed uncertainty, or no improvement over search on sealed cases.",
+    "id": "evidence-adjudication",
+    "intervention": "A skill distinguishes support, contradiction, insufficient evidence, and outdated evidence using versioned, licensed primary sources.",
+    "need_ids": [
+      "evidence_provenance",
+      "skill_import_provenance"
+    ],
+    "primary_outcome": "Blinded accuracy of the four-way decision and citation characterization.",
+    "source_ids": [
+      "ai4science:426:1"
+    ],
+    "status": "proposal"
+  },
+  {
+    "baseline": "Researcher follows an existing reproduction checklist.",
+    "evidence_state": "exploratory",
+    "failure_condition": "Unauthorized execution or no reduction in verification time.",
+    "id": "reproduction-triage",
+    "intervention": "A skill ranks data, environment, code, and reported-result discrepancies for authorized local checks.",
+    "need_ids": [
+      "artifact_replay",
+      "measurement_harmonization"
+    ],
+    "primary_outcome": "Time to a researcher-verified first cause on a held-out reproduction package.",
+    "source_ids": [
+      "ai4science:426:1"
+    ],
+    "status": "proposal"
+  }
+]
