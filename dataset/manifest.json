@@ -1,17 +1,25 @@
 {
   "as_of": "2026-10-02",
   "files_sha256": {
-    "graph.json": "fe51b071fd96061f47838319b8d345b01bdac0dc6f8fa2f167dd25f63b439d4d",
-    "hypotheses.json": "535e7ccb57218ad066ce9196871998d3239f406dd3ae3a482066c2aaa45aa9ba",
+    "graph.json": "7715b092bf77a67488ea00fbf7126f13079fab48ef33e6ef188b5efc9c40952c",
+    "hypotheses.json": "7a770f6f666af55ead1fedae951b2613e7a54ef43e055cb3ed8ffa7a42a97196",
     "needs.json": "bf330548f454d59b3c3519330181437167ef4410e720fb530a785a1902e1f5a0",
-    "second_brain.candidates.jsonl": "78713953ff37fddbf8b5181595b979397d33773b4e2ceb9fab1db5f91a76ae6f",
-    "sources.public.jsonl": "3edf511b4d021c7eb8286035c8fa444031abe6eb04f06e8718dc0bf29bfba0f9"
+    "second_brain.candidates.jsonl": "21a3599ab2fa99e750536f28f5e2352b01e89c49ac374b08d45512f5cd1f377b",
+    "sources.public.jsonl": "56e811961187749cc68e2aac2ce5dd1a161edcdf6afc4b99372dffe76e270efd"
   },
+  "forum_inventory_status": "not_established_by_this_build",
+  "generator_sha256": "8a6a4888927b1802ea0ea3ee751152de5952a3ed58cfb9c5cd08595958cb2e4c",
   "independent_public_topics": 1,
   "model_training_authorized": false,
+  "opportunities_sha256": "8fb5ede904720b60a279b9f7ee4292164bbbcfc293f09901b25f3f64d287bbc7",
+  "public_scope": "metadata_and_original_summaries_only",
+  "public_source_records_sha256": "04ff0d46ad67e1c919a234623a656f4d6d19275e08200c70b93c11f8690a4267",
+  "record_schema_sha256": "2a3b13e5d1cb8ea0a628fa364e87a0f66a87982b73a2e0ffdb4ffaff4fcabff3",
+  "rights_basis": "per_record_assertions_no_site_wide_grant_inferred",
   "sampling": "operator_convenience_sample_not_representative",
   "schema": "szl-science-forum-corpus-v1",
   "source_records_public": 1,
   "source_records_seen": 1,
-  "source_records_withheld": 0
+  "source_records_withheld": 0,
+  "source_revision_status": "not_recorded_in_public_pilot"
 }

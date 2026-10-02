@@ -33,6 +33,11 @@ REVIEW_STATES = {"unreviewed", "operator_labeled", "double_reviewed"}
 ACCESS = {"public_web", "members_only"}
 RIGHTS = {"operator_authorized", "licensed", "unknown"}
 EMAIL_RE = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.I)
+PHONE_RE = re.compile(r"(?<![\w])\+?(?:\d[\s().-]*){10,15}(?![\w])")
+SECRET_RE = re.compile(
+    r"(?i)(?:\b(?:api[_-]?key|access[_-]?token|bearer|password|secret)\b\s*[:=]\s*\S+"
+    r"|\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|hf_[A-Za-z0-9]{20,})\b)"
+)
 
 
 def strict_json(text: str) -> object:
@@ -105,6 +110,8 @@ def validate_record(record: object, line_number: int) -> dict:
     attribution = _clean_text(record["attribution"], "attribution", 120)
     if any(EMAIL_RE.search(value) for value in (title, summary, rights_evidence, attribution)):
         raise ValueError(f"line {line_number}: email address in public metadata")
+    if any(PHONE_RE.search(value) or SECRET_RE.search(value) for value in (title, summary, rights_evidence)):
+        raise ValueError(f"line {line_number}: contact number or credential in public metadata")
     observed_at = _clean_text(record["observed_at"], "observed_at", 10)
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", observed_at):
         raise ValueError(f"line {line_number}: invalid observed_at")
@@ -212,13 +219,17 @@ def _load_opportunities(path: Path) -> list[dict]:
 def build(records: list[dict], opportunities: list[dict], as_of: str) -> dict[str, bytes]:
     date.fromisoformat(as_of)
     approved = sorted((r for r in records if may_publish(r)), key=lambda r: r["source_id"])
+    # Bind only the approved input semantics; private records must not
+    # contribute a publicly guessable digest.
+    public_records_sha256 = hashlib.sha256(_jsonl_bytes(approved)).hexdigest()
+    opportunities_sha256 = hashlib.sha256(_json_bytes(opportunities)).hexdigest()
     sources = [
         {
             "source_id": r["source_id"], "source_url": r["source_url"],
             "topic_id": r["topic_id"], "post_number": r["post_number"],
             "title": r["title"], "summary": r["summary"],
             "need_ids": r["need_ids"], "review_state": r["review_state"],
-            "attribution": r["attribution"], "observed_at": r["observed_at"],
+            "observed_at": r["observed_at"],
             "posted_at": r["posted_at"],
             "publication_rights": r["publication_rights"],
             "rights_evidence": r["rights_evidence"],
@@ -241,9 +252,13 @@ def build(records: list[dict], opportunities: list[dict], as_of: str) -> dict[st
     ]
     hypothesis_cards = []
     for opportunity in opportunities:
-        refs = sorted({source for need in opportunity["need_ids"] for source in need_to_sources.get(need, set())})
+        observed_need_ids = sorted(set(opportunity["need_ids"]) & set(need_to_topics))
+        proposed_only_need_ids = sorted(set(opportunity["need_ids"]) - set(need_to_topics))
+        refs = sorted({source for need in observed_need_ids for source in need_to_sources[need]})
         hypothesis_cards.append({
             **opportunity,
+            "observed_need_ids": observed_need_ids,
+            "proposed_only_need_ids": proposed_only_need_ids,
             "source_ids": refs,
             "evidence_state": "exploratory" if refs else "no_admitted_source",
         })
@@ -254,6 +269,9 @@ def build(records: list[dict], opportunities: list[dict], as_of: str) -> dict[st
         {"id": f"need:{n['need_id']}", "type": "Need", "independent_topic_count": n["independent_topic_count"]}
         for n in needs
     ] + [
+        {"id": f"need:{need}", "type": "ProposedNeed", "independent_topic_count": 0}
+        for need in sorted({need for h in hypothesis_cards for need in h["proposed_only_need_ids"]})
+    ] + [
         {"id": f"hypothesis:{h['id']}", "type": "Hypothesis", "evidence_state": h["evidence_state"]}
         for h in hypothesis_cards
     ]
@@ -262,7 +280,10 @@ def build(records: list[dict], opportunities: list[dict], as_of: str) -> dict[st
         for r in sources for need in r["need_ids"]
     ] + [
         {"from": f"need:{need}", "to": f"hypothesis:{h['id']}", "relation": "motivates_test"}
-        for h in hypothesis_cards for need in h["need_ids"] if need in need_to_topics
+        for h in hypothesis_cards for need in h["observed_need_ids"]
+    ] + [
+        {"from": f"need:{need}", "to": f"hypothesis:{h['id']}", "relation": "proposed_for_test"}
+        for h in hypothesis_cards for need in h["proposed_only_need_ids"]
     ]
     files = {
         "sources.public.jsonl": _jsonl_bytes(sources),
@@ -282,7 +303,6 @@ def build(records: list[dict], opportunities: list[dict], as_of: str) -> dict[st
             "sha256": hashlib.sha256(r["summary"].encode("utf-8")).hexdigest(),
             "rightsEvidence": r["rights_evidence"],
             "reviewState": r["review_state"],
-            "attribution": r["attribution"],
         }
         for r in sources
     ])
@@ -294,6 +314,16 @@ def build(records: list[dict], opportunities: list[dict], as_of: str) -> dict[st
         "source_records_withheld": len(records) - len(approved),
         "independent_public_topics": len({r["topic_id"] for r in approved}),
         "sampling": "operator_convenience_sample_not_representative",
+        "forum_inventory_status": "not_established_by_this_build",
+        "source_revision_status": "not_recorded_in_public_pilot",
+        "public_scope": "metadata_and_original_summaries_only",
+        "rights_basis": "per_record_assertions_no_site_wide_grant_inferred",
+        "public_source_records_sha256": public_records_sha256,
+        "opportunities_sha256": opportunities_sha256,
+        "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "record_schema_sha256": hashlib.sha256(
+            (Path(__file__).resolve().parents[1] / "schema" / "record-v1.schema.json").read_bytes()
+        ).hexdigest(),
         "model_training_authorized": False,
         "files_sha256": {name: hashlib.sha256(data).hexdigest() for name, data in sorted(files.items())},
     }
