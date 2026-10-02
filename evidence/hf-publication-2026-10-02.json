@@ -1,0 +1,31 @@
+{
+  "schema": "szl.forum-corpus.provider-readback/v1",
+  "observed_at": "2026-10-02T22:36:30Z",
+  "state": "PUBLISHED_AND_INDEPENDENTLY_READ_BACK",
+  "source": {
+    "repository": "https://github.com/szl-holdings/szl-science-forum-corpus",
+    "commit": "f7359cfbaeb98e724fdf0b7cbcb501b42e5e685e",
+    "directory": "dataset/"
+  },
+  "provider": {
+    "repository": "https://huggingface.co/datasets/SZLHOLDINGS/szl-science-forum-corpus",
+    "revision": "d8f8fec38361d988fddebec0be7898138af15275",
+    "private": false
+  },
+  "workflow_run": "https://github.com/szl-holdings/szl-science-forum-corpus/actions/runs/37073279036",
+  "comparison": "Seven provider files downloaded without authentication at the exact provider revision and compared byte-for-byte with Git blobs at the exact source commit. The provider-generated .gitattributes was the only additional file.",
+  "files_sha256": {
+    "README.md": "e4d79c886e299a5a3089c02327f887742b5046b545c63756fe8cf15517c965ad",
+    "graph.json": "fe51b071fd96061f47838319b8d345b01bdac0dc6f8fa2f167dd25f63b439d4d",
+    "hypotheses.json": "535e7ccb57218ad066ce9196871998d3239f406dd3ae3a482066c2aaa45aa9ba",
+    "manifest.json": "54d958096c683a72dbce6381d78533410f5ecd83d0bc9e58ad5b8cb9ac0da144",
+    "needs.json": "bf330548f454d59b3c3519330181437167ef4410e720fb530a785a1902e1f5a0",
+    "second_brain.candidates.jsonl": "78713953ff37fddbf8b5181595b979397d33773b4e2ceb9fab1db5f91a76ae6f",
+    "sources.public.jsonl": "3edf511b4d021c7eb8286035c8fa444031abe6eb04f06e8718dc0bf29bfba0f9"
+  },
+  "admitted_source_records": 1,
+  "source_records_withheld": 0,
+  "model_training_authorized": false,
+  "second_brain_admission": "NOT_ADMITTED",
+  "anatomy_binding": "NOT_UPDATED"
+}
