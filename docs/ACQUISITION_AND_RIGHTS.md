@@ -4,6 +4,8 @@
 
 Before expanding the corpus, obtain from the forum operator a documented access route (prefer an admin-approved export) and a decision for each use: metadata indexing, derived summaries, quotation, retrieval, benchmark construction, and model training. Record the policy version, author/organizer permission where required, retention period, deletion process, and handling of edits and removed posts. A forum account and technical access are insufficient evidence for redistribution.
 
+A [request draft](FORUM_EXPORT_REQUEST_DRAFT.md) is prepared for the operator. It has not been sent.
+
 The approved export should exclude private messages, email addresses, invite tokens, user profiles, attachments without separate rights, and closed/private categories unless specifically authorized. Keep any raw export in an access-controlled local store; never commit it to this repository or upload it to Hugging Face by default. Use the public builder only with independently authored summaries and explicit publication approvals. A reviewer must check that paraphrases do not reproduce substantial passages or expose personal information.
 
 Only after a separate model-data decision should the team consider training. Prefer access-controlled retrieval first because a source can then be corrected or removed without retraining weights. A training proposal must name the specific permitted data, purpose, retention, removal process, model version, memorization tests, and an evaluation against a simpler retrieval baseline. `model_training_authorized` remains `false` in this repository's manifest.

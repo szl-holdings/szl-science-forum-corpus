@@ -28,7 +28,7 @@ The three initial experiments are an experiment-contract skill, evidence adjudic
 ## Publication boundary
 
 - GitHub holds code, schemas, original annotations, operator-authorized metadata, and aggregate outputs after review.
-- A Hugging Face dataset may mirror **only** that reviewed public projection through the repository's governed, manual-dispatch mirror workflow after its source PR is merged. The workflow binds an exact main commit and reads back every provider file byte. No Hugging Face dataset has been created by this repository yet.
+- A Hugging Face dataset may mirror **only** that reviewed public projection through the repository's governed, manual-dispatch mirror workflow after its source PR is merged. The workflow binds an exact main commit and reads back every provider file byte. Check the provider revision and workflow result before treating it as published; source presence alone is not a release.
 - Second-brain and anatomy links are candidate provenance edges until their maintainers accept an integration PR and provider readback confirms a release.
 
 The [Discourse API documentation](https://docs.discourse.org/) describes supported topic and category pagination. [W3C PROV](https://www.w3.org/TR/prov-o/) supplies the provenance vocabulary, and [Datasheets for Datasets](https://arxiv.org/abs/1803.09010) motivates explicit collection and intended-use documentation. Neither technical access nor robots.txt establishes a content license.
