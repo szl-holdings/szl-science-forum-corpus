@@ -23,7 +23,7 @@ The `build/` directory is ignored. The committed [dataset](dataset/) is the revi
 4. For each build, register a baseline, intervention, observable outcome, failure condition, and harm limit before opening the held-out set. A forum signal is a hypothesis, not proof of scientific value.
 5. Compare workflows with blinded domain review and report uncertainty, abstentions, failure cases, cost, and latency. No model should be trained on member posts without a separate rights and privacy decision.
 
-The three initial experiments are an experiment-contract skill, evidence adjudication, and reproduction triage. Their protocols are in [opportunities.json](opportunities.json). They are proposals, not implemented Claude Science registrations or validated scientific results.
+The three initial experiments are an experiment-contract skill, evidence adjudication, and reproduction triage. Their protocols are in [opportunities.json](opportunities.json), and the [skill gap map](docs/SKILL_GAP_MAP.md) distinguishes them from existing SZL science tools. They are proposals, not implemented Claude Science registrations or validated scientific results.
 
 ## Publication boundary
 
