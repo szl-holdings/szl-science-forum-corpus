@@ -14,6 +14,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+from typing import Any, Callable
 
 from scripts.verify_projection import DATASET, ROOT, main as verify_projection
 from szl_forum_corpus.cli import may_publish, read_records
@@ -22,6 +23,16 @@ from szl_forum_corpus.cli import may_publish, read_records
 REPO_ID = "SZLHOLDINGS/szl-science-forum-corpus"
 SOURCE_INPUT = ROOT / "examples" / "operator_topics.jsonl"
 HEX_40 = re.compile(r"^[0-9a-f]{40}$")
+
+
+def _provider_call(stage: str, operation: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    """Keep the failing provider stage without printing response bodies or credentials."""
+    try:
+        return operation(*args, **kwargs)
+    except Exception as exc:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        code = f" HTTP {status}" if isinstance(status, int) else ""
+        raise ValueError(f"{stage}: provider {type(exc).__name__}{code}") from None
 
 
 def public_files() -> dict[str, bytes]:
@@ -50,14 +61,14 @@ def _local_git_sha() -> str:
 def _read_back(api, revision: str, files: dict[str, bytes], token: str) -> None:
     from huggingface_hub import hf_hub_download
 
-    info = api.dataset_info(REPO_ID, revision=revision)
+    info = _provider_call("read_back_info", api.dataset_info, REPO_ID, revision=revision)
     if info.sha != revision or info.private:
         raise ValueError("provider revision or visibility mismatch")
     observed = {entry.rfilename for entry in info.siblings}
     if observed - (set(files) | {".gitattributes"}) or set(files) - observed:
         raise ValueError("provider file inventory mismatch")
     for name, expected in files.items():
-        path = Path(hf_hub_download(
+        path = Path(_provider_call("read_back_file", hf_hub_download,
             repo_id=REPO_ID, repo_type="dataset", filename=name,
             revision=revision, token=token
         ))
@@ -77,16 +88,21 @@ def publish(files: dict[str, bytes], expected_sha: str) -> dict:
     token = os.environ.get("HF_TOKEN")
     if not token:
         raise ValueError("HF_TOKEN is unavailable")
+    if token != token.strip():
+        raise ValueError("HF_TOKEN has surrounding whitespace")
 
     from huggingface_hub import CommitOperationAdd, HfApi
 
     api = HfApi(token=token)
-    exists = api.repo_exists(REPO_ID, repo_type="dataset")
-    if exists and api.dataset_info(REPO_ID).private:
+    identity = _provider_call("authenticate", api.whoami)
+    if not isinstance(identity, dict) or not identity.get("name"):
+        raise ValueError("authenticate: provider returned no account identity")
+    exists = _provider_call("repo_exists", api.repo_exists, REPO_ID, repo_type="dataset")
+    if exists and _provider_call("inspect_existing", api.dataset_info, REPO_ID).private:
         raise ValueError("existing dataset is private; visibility change requires separate review")
     if not exists:
-        api.create_repo(REPO_ID, repo_type="dataset", private=False, exist_ok=False)
-    before = api.dataset_info(REPO_ID)
+        _provider_call("create_repo", api.create_repo, REPO_ID, repo_type="dataset", private=False, exist_ok=False)
+    before = _provider_call("inspect_before", api.dataset_info, REPO_ID)
     existing = {entry.rfilename for entry in before.siblings}
     if existing - (set(files) | {".gitattributes"}):
         raise ValueError("existing dataset contains unreviewed extra files")
@@ -95,7 +111,7 @@ def publish(files: dict[str, bytes], expected_sha: str) -> dict:
         CommitOperationAdd(path_in_repo=name, path_or_fileobj=DATASET / name)
         for name in sorted(files)
     ]
-    commit = api.create_commit(
+    commit = _provider_call("create_commit", api.create_commit,
         repo_id=REPO_ID, repo_type="dataset", operations=operations,
         commit_message=f"Mirror signed GitHub source {expected_sha}",
         parent_commit=before.sha,

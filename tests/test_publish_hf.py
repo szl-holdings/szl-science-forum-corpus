@@ -2,10 +2,21 @@ import json
 import unittest
 from unittest.mock import patch
 
-from scripts.publish_hf import _local_git_sha, public_files, publish
+from scripts.publish_hf import _local_git_sha, _provider_call, public_files, publish
 
 
 class ProviderGateTests(unittest.TestCase):
+    def test_provider_error_names_stage_without_echoing_response(self):
+        class RejectedRequest(Exception):
+            response = type("Response", (), {"status_code": 400})()
+
+        def reject():
+            raise RejectedRequest("secret-bearing response text")
+
+        with self.assertRaisesRegex(ValueError, "create_repo: provider RejectedRequest HTTP 400") as caught:
+            _provider_call("create_repo", reject)
+        self.assertNotIn("secret-bearing", str(caught.exception))
+
     def test_offline_preflight_has_only_reviewed_metadata(self):
         files = public_files()
         self.assertEqual(len(files), 7)
