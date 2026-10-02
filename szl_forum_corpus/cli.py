@@ -82,12 +82,14 @@ def validate_record(record: object, line_number: int) -> dict:
 
     source_url = _clean_text(record["source_url"], "source_url", 500)
     parsed = urlparse(source_url)
+    post_path = re.fullmatch(rf"/t/[a-z0-9-]+/{topic_id}(?:/([1-9][0-9]*))?/?", parsed.path)
     if (
         parsed.scheme != "https"
         or parsed.hostname != "ai4science.discourse.group"
         or parsed.username or parsed.password or parsed.port
         or parsed.query or parsed.fragment
-        or not re.fullmatch(rf"/t/[a-z0-9-]+/{topic_id}(?:/{post_number})?/?", parsed.path)
+        or not post_path
+        or int(post_path.group(1) or "1") != post_number
     ):
         raise ValueError(f"line {line_number}: invalid or unsafe source_url")
 

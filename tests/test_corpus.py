@@ -60,6 +60,16 @@ class CorpusContractTests(unittest.TestCase):
         unsafe = {**self.record, "source_url": self.record["source_url"] + "?api_key=secret"}
         with self.assertRaises(ValueError):
             validate_record(unsafe, 1)
+        mismatched_reply = {
+            **self.record,
+            "source_id": "ai4science:426:2",
+            "post_number": 2,
+        }
+        with self.assertRaisesRegex(ValueError, "source_url"):
+            validate_record(mismatched_reply, 1)
+        mismatched_reply["source_url"] += "/3"
+        with self.assertRaisesRegex(ValueError, "source_url"):
+            validate_record(mismatched_reply, 1)
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "duplicate.jsonl"
             path.write_text(json.dumps(self.record) + "\n" + json.dumps(self.record) + "\n", encoding="utf-8")
@@ -77,6 +87,7 @@ class CorpusContractTests(unittest.TestCase):
         second = copy.deepcopy(self.record)
         second["source_id"] = "ai4science:426:2"
         second["post_number"] = 2
+        second["source_url"] += "/2"
         outputs = build([validate_record(self.record, 1), validate_record(second, 2)], OPPORTUNITIES, "2026-10-02")
         self.assertEqual(json.loads(outputs["manifest.json"])["independent_public_topics"], 1)
         self.assertTrue(all(need["independent_topic_count"] == 1 for need in json.loads(outputs["needs.json"])))
