@@ -12,6 +12,6 @@ To make the link operational after rights review:
 
 1. Review every candidate, source link, attribution, and right-to-publish record. Admit only approved rows through a signed Second Brain PR. Update its source validation, generated corpus files, manifest counts/digests, tests, and package contract together. Include citation metadata in public handles; the current `SecondBrainIndex.handle()` omits `sourceId` even though its internal row retains it.
 2. Merge the Second Brain source PR through its protected process. Let the repository's governed Hugging Face mirror publish the exact dataset projection. Read back the dataset commit and compare corpus and manifest bytes before saying it is published.
-3. Update Anatomy's fixed row count and handle projection through a separate PR pinned to the new Second Brain Git SHA. Run its materializer and tests, then read back its source binding and Brain health on the deployed Space. Report `STRUCTURAL_ONLY` until independent scientific evaluation exists.
+3. Update Anatomy's fixed row count and source pin through a separate PR. Anatomy already retains `sourceId` on retrieval handles; verify that the newly admitted forum citation survives that projection. Run its materializer and tests, then read back its source binding and Brain health on the deployed Space. Report `STRUCTURAL_ONLY` until independent scientific evaluation exists.
 
 Do not change the live 575-row count or claim a forum-backed release based on this staging kit. Lambda remains **Conjecture 1 (OPEN)**.
