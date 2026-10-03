@@ -1,0 +1,62 @@
+name: Audit reviewed corpus alignment
+
+on:
+  pull_request:
+    paths:
+      - "dataset/**"
+      - "examples/**"
+      - "opportunities.json"
+      - "scripts/**"
+      - "tests/**"
+      - ".github/workflows/audit-corpus-alignment.yml"
+  workflow_run:
+    workflows: ["Publish reviewed forum index to Hugging Face"]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: szl-science-forum-hf-alignment
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: python -B -m unittest discover -s tests -v
+      - run: python -B -m scripts.verify_projection
+
+  alignment:
+    if: github.event_name != 'pull_request'
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Read public provider bytes at one stable exact revision
+        run: python -B -m scripts.audit_hf --expected-sha "$GITHUB_SHA" --out build/hf-alignment.json
+      - name: Preserve alignment receipt even on drift or unavailable provider
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: forum-hf-alignment-${{ github.sha }}
+          path: build/hf-alignment.json
+          if-no-files-found: warn
+          retention-days: 14
