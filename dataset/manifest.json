@@ -1,17 +1,17 @@
 {
   "as_of": "2026-10-02",
   "files_sha256": {
-    "graph.json": "fe51b071fd96061f47838319b8d345b01bdac0dc6f8fa2f167dd25f63b439d4d",
-    "hypotheses.json": "535e7ccb57218ad066ce9196871998d3239f406dd3ae3a482066c2aaa45aa9ba",
-    "needs.json": "bf330548f454d59b3c3519330181437167ef4410e720fb530a785a1902e1f5a0",
-    "second_brain.candidates.jsonl": "78713953ff37fddbf8b5181595b979397d33773b4e2ceb9fab1db5f91a76ae6f",
-    "sources.public.jsonl": "3edf511b4d021c7eb8286035c8fa444031abe6eb04f06e8718dc0bf29bfba0f9"
+    "graph.json": "50e03db59e5e4ac1661c0b2990f8a0eb7b7040e26412e66ffc0dcd8338a1d1b3",
+    "hypotheses.json": "9f7f36213dd1d6b2d9151c2836c23a65d59e947d7f311df652fa923b7627ecc1",
+    "needs.json": "9b19ceda5497003d3cb6691590e745b516993843e852d9b89dbbea2b910516ab",
+    "second_brain.candidates.jsonl": "9f9cd7f50b11ad6f1971b417dec0f4d1e97e281f1f3aebeea122c8448e23ef8d",
+    "sources.public.jsonl": "833b9e312b9ff4fafaaca636b6b2dce4436e16fbe181934ba0ed933e305882d9"
   },
-  "independent_public_topics": 1,
+  "independent_public_topics": 2,
   "model_training_authorized": false,
   "sampling": "operator_convenience_sample_not_representative",
   "schema": "szl-science-forum-corpus-v1",
-  "source_records_public": 1,
-  "source_records_seen": 1,
+  "source_records_public": 2,
+  "source_records_seen": 2,
   "source_records_withheld": 0
 }

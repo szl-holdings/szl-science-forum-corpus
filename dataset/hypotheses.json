@@ -27,6 +27,7 @@
     ],
     "primary_outcome": "Blinded accuracy of the four-way decision and citation characterization.",
     "source_ids": [
+      "ai4science:396:1",
       "ai4science:426:1"
     ],
     "status": "proposal"

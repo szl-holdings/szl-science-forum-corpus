@@ -1,6 +1,6 @@
 # From discussions to falsifiable builds
 
-The current one-topic index is a demonstration only. Its counts are descriptive coverage of the admitted records, not a prevalence estimate. The following protocol applies after an authorized, documented export exists.
+The current two-topic operator convenience index is a demonstration only. Its counts are descriptive coverage of the admitted records, not a prevalence estimate. The following protocol applies after an authorized, documented export exists.
 
 1. **Admit and deduplicate.** Freeze the source snapshot, terms version, URL/post ID, post/edit times, collection time, and digest. Cluster exact and near-duplicate posts by thread, linked paper, and underlying task; audit a sample of both proposed merges and missed duplicates. Count independent problem groups, not replies.
 2. **Label independently.** Two researchers label a stratified probability sample for task, obstacle, workaround, consequence, domain, and plausible intervention. Keep disagreements and negative cases. Publish the codebook and adjudication rules before computing category frequencies.

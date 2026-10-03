@@ -17,21 +17,27 @@ class CorpusContractTests(unittest.TestCase):
     def setUp(self):
         self.record = json.loads(EXAMPLE.read_text(encoding="utf-8").splitlines()[0])
 
-    def test_operator_source_build_has_traceable_but_exploratory_hypotheses(self):
+    def test_operator_sources_build_has_traceable_but_exploratory_hypotheses(self):
         outputs = build(read_records(EXAMPLE), OPPORTUNITIES, "2026-10-02")
         manifest = json.loads(outputs["manifest.json"])
         graph = json.loads(outputs["graph.json"])
         hypotheses = json.loads(outputs["hypotheses.json"])
-        self.assertEqual(manifest["source_records_public"], 1)
-        self.assertEqual(manifest["independent_public_topics"], 1)
+        self.assertEqual(manifest["source_records_public"], 2)
+        self.assertEqual(manifest["independent_public_topics"], 2)
         self.assertFalse(manifest["model_training_authorized"])
-        self.assertEqual(len(graph["nodes"]), 8)
+        self.assertEqual(len([node for node in graph["nodes"] if node["type"] == "Source"]), 2)
         self.assertTrue(any(edge["relation"] == "raises_candidate_need" for edge in graph["edges"]))
         self.assertTrue(all(card["evidence_state"] == "exploratory" for card in hypotheses))
         self.assertNotIn(b"Following my earlier", outputs["sources.public.jsonl"])
-        candidate = json.loads(outputs["second_brain.candidates.jsonl"])
-        self.assertEqual(candidate["source"], "forum_insight")
-        self.assertEqual(candidate["sha256"], hashlib.sha256(candidate["text"].encode()).hexdigest())
+        self.assertNotIn(b"Archive exceeds 100 MB uncompressed", outputs["sources.public.jsonl"])
+        candidates = [json.loads(line) for line in outputs["second_brain.candidates.jsonl"].splitlines()]
+        self.assertEqual({candidate["id"] for candidate in candidates}, {"forum_insight:396:1", "forum_insight:426:1"})
+        for candidate in candidates:
+            self.assertEqual(candidate["source"], "forum_insight")
+            self.assertEqual(candidate["sha256"], hashlib.sha256(candidate["text"].encode()).hexdigest())
+        shared_need = next(need for need in json.loads(outputs["needs.json"]) if need["need_id"] == "skill_import_provenance")
+        self.assertEqual(shared_need["independent_topic_count"], 2)
+        self.assertEqual(shared_need["source_ids"], ["ai4science:396:1", "ai4science:426:1"])
 
     def test_unknown_rights_and_third_party_member_post_are_withheld(self):
         unknown = copy.deepcopy(self.record)
