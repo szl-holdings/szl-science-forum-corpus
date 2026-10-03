@@ -76,7 +76,9 @@ def validate_local(raw: str | Path, expected: str) -> tuple[Path, dict]:
     if SHA256.fullmatch(expected) is None:
         raise VerificationError("EXPECTED_SHA256_REQUIRED")
     path = checked_path(raw)
-    size = path.stat().st_size
+    path_info = path.stat()
+    path_initial = fingerprint(path_info)
+    size = path_info.st_size
     if not 0 < size <= MAX_ARCHIVE_BYTES:
         raise VerificationError("ARCHIVE_SIZE_LIMIT")
     revision, entries, _ = backup.snapshot()  # Local canonical origin/main; no fetch.
@@ -87,6 +89,8 @@ def validate_local(raw: str | Path, expected: str) -> tuple[Path, dict]:
     expected_members = {item["path"]: item for item in entries}
     with path.open("rb") as source:
         initial = fingerprint(os.fstat(source.fileno()))
+        if initial[:3] != path_initial[:3]:
+            raise VerificationError("LOCAL_ARCHIVE_CHANGED")
         digest = hashlib.sha256()
         total = 0
         while chunk := source.read(min(CHUNK_BYTES, size + 1 - total)):
@@ -128,8 +132,10 @@ def validate_local(raw: str | Path, expected: str) -> tuple[Path, dict]:
                           else expected_members[item.filename]["sha256"])
                 if count != item.file_size or checksum.hexdigest() != wanted:
                     raise VerificationError("ARCHIVE_SOURCE_MISMATCH")
+        # Windows 3.12 can report different ctime values through stat/fstat.
+        # Preserve both change guards, comparing each API to its own baseline.
         if (initial != fingerprint(os.fstat(source.fileno()))
-                or initial != fingerprint(checked_path(path).stat())):
+                or path_initial != fingerprint(checked_path(path).stat())):
             raise VerificationError("LOCAL_ARCHIVE_CHANGED")
     return path, {"schema": "szl.onedrive-content-integrity/v1", "state": "PLAN_ONLY",
                   "local_evidence_class": "MEASURED", "source_revision": revision,

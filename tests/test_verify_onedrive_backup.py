@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 import zipfile
@@ -149,6 +150,56 @@ class VerificationTests(unittest.TestCase):
     def metadata(self, **overrides):
         return FakeChild(json.dumps({"Name": self.archive.name, "Size": self.archive.stat().st_size,
                                      "IsDir": False, **overrides}).encode())
+
+    def test_stable_handle_and_path_clocks_can_differ(self):
+        original_fstat = os.fstat
+
+        def distinct_handle_clock(fd):
+            info = original_fstat(fd)
+            return SimpleNamespace(st_dev=info.st_dev, st_ino=info.st_ino,
+                                   st_size=info.st_size, st_mtime_ns=info.st_mtime_ns,
+                                   st_ctime_ns=info.st_ctime_ns + 1_000_000_000)
+
+        with patch.object(verify.os, "fstat", side_effect=distinct_handle_clock):
+            code, report, spawn = self.invoke(self.argv())
+        self.assertEqual(code, 0)
+        self.assertEqual(report["state"], "PLAN_ONLY")
+        self.registration.assert_not_called()
+        spawn.assert_not_called()
+
+    def test_local_metadata_change_still_blocks_before_provider(self):
+        original_archive = zipfile.ZipFile
+        path = self.archive
+        before = path.stat()
+
+        class ChangedArchive(original_archive):
+            def __exit__(self, *args):
+                result = super().__exit__(*args)
+                os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns + 1_000_000_000))
+                return result
+
+        with patch.object(verify.zipfile, "ZipFile", ChangedArchive):
+            code, report, spawn = self.invoke(self.argv(remote=True))
+        self.assertEqual(code, 1)
+        self.assertEqual(report["reason"], "LOCAL_ARCHIVE_CHANGED")
+        self.assertFalse(report["remote_readback_verified"])
+        spawn.assert_not_called()
+
+    def test_open_handle_must_match_path_identity(self):
+        original_fstat = os.fstat
+
+        def distinct_handle_identity(fd):
+            info = original_fstat(fd)
+            return SimpleNamespace(st_dev=info.st_dev, st_ino=info.st_ino + 1,
+                                   st_size=info.st_size, st_mtime_ns=info.st_mtime_ns,
+                                   st_ctime_ns=info.st_ctime_ns)
+
+        with patch.object(verify.os, "fstat", side_effect=distinct_handle_identity):
+            code, report, spawn = self.invoke(self.argv(remote=True))
+        self.assertEqual(code, 1)
+        self.assertEqual(report["reason"], "LOCAL_ARCHIVE_CHANGED")
+        self.assertFalse(report["remote_readback_verified"])
+        spawn.assert_not_called()
 
     def test_plan_validates_local_source_without_registration_config_or_process(self):
         with patch.object(verify, "private_remote", side_effect=AssertionError("config access")), \
