@@ -28,6 +28,11 @@ files after publication and daily. It preserves source/provider revision receipt
 returns nonzero for drift or unavailable evidence, and performs no forum scraping,
 model training or automatic retrieval admission.
 
+[Private OneDrive snapshots](docs/ONEDRIVE_BACKUPS.md) provide a bounded Windows
+backup of immutable public source with per-file hashes and explicit client sync
+states. The helper preserves originals and keeps local staging, client sync and
+cloud restore as separate evidence.
+
 A [bounded Killinchu dataset audit](docs/KILLINCHU_DATASET_AUDIT_2026-10-03.md)
 connects these contracts to the public OSINT archive. It covers all 300 records
 in five small snapshots and all 99 historical manifest entries, with explicit
