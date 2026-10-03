@@ -1,0 +1,46 @@
+{
+  "admitted_source_records": 2,
+  "automatic_publication": {
+    "independent_audit_run": "https://github.com/szl-holdings/szl-science-forum-corpus/actions/runs/37088723489",
+    "published_dataset_bytes_match_this_readback": true,
+    "recorded_independent_state": "ALIGNED",
+    "recorded_state": "PUBLISHED_AND_READ_BACK",
+    "source_git_sha": "7dd0b549c82b9c07468985df2f8f7912ed61b258",
+    "workflow_run": "https://github.com/szl-holdings/szl-science-forum-corpus/actions/runs/37088704288"
+  },
+  "coverage": "SEVEN_REVIEWED_PUBLIC_FILES",
+  "dataset": "SZLHOLDINGS/szl-science-forum-corpus",
+  "files_sha256": {
+    "README.md": "040f3a38f4978a764ab5c30ce69065cb02290fc76fed8d9c891b97af69ff8aa1",
+    "graph.json": "50e03db59e5e4ac1661c0b2990f8a0eb7b7040e26412e66ffc0dcd8338a1d1b3",
+    "hypotheses.json": "9f7f36213dd1d6b2d9151c2836c23a65d59e947d7f311df652fa923b7627ecc1",
+    "manifest.json": "6cd9491cbd7ce858c05164995d85308991c03e02c4d46eac227ee2a7aacaef9e",
+    "needs.json": "9b19ceda5497003d3cb6691590e745b516993843e852d9b89dbbea2b910516ab",
+    "second_brain.candidates.jsonl": "9f9cd7f50b11ad6f1971b417dec0f4d1e97e281f1f3aebeea122c8448e23ef8d",
+    "sources.public.jsonl": "833b9e312b9ff4fafaaca636b6b2dce4436e16fbe181934ba0ed933e305882d9"
+  },
+  "forum_wide_collection": "NOT_OBTAINED",
+  "head_stable": true,
+  "hf_revision": "72964cdc1e325a39c0cb82737e795a23559ae088",
+  "mismatched_files": [],
+  "missing_files": [],
+  "model_training_authorized": false,
+  "observed_at": "2026-10-03T02:25:22Z",
+  "observed_files_sha256": {
+    "README.md": "040f3a38f4978a764ab5c30ce69065cb02290fc76fed8d9c891b97af69ff8aa1",
+    "graph.json": "50e03db59e5e4ac1661c0b2990f8a0eb7b7040e26412e66ffc0dcd8338a1d1b3",
+    "hypotheses.json": "9f7f36213dd1d6b2d9151c2836c23a65d59e947d7f311df652fa923b7627ecc1",
+    "manifest.json": "6cd9491cbd7ce858c05164995d85308991c03e02c4d46eac227ee2a7aacaef9e",
+    "needs.json": "9b19ceda5497003d3cb6691590e745b516993843e852d9b89dbbea2b910516ab",
+    "second_brain.candidates.jsonl": "9f9cd7f50b11ad6f1971b417dec0f4d1e97e281f1f3aebeea122c8448e23ef8d",
+    "sources.public.jsonl": "833b9e312b9ff4fafaaca636b6b2dce4436e16fbe181934ba0ed933e305882d9"
+  },
+  "provider_writes": false,
+  "reason": "EXACT_BYTES_AND_STABLE_HEAD",
+  "schema": "szl-forum-hf-alignment-v1",
+  "second_brain_retrieval_admission": false,
+  "source_git_sha": "9ddef789493acf6e6f75189fa941748cc486d544",
+  "state": "ALIGNED",
+  "unexpected_file_count": 0,
+  "verification_state": "STRUCTURAL_ONLY"
+}

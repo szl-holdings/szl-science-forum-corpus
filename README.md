@@ -28,6 +28,11 @@ files after publication and daily. It preserves source/provider revision receipt
 returns nonzero for drift or unavailable evidence, and performs no forum scraping,
 model training or automatic retrieval admission.
 
+A [bounded Killinchu dataset audit](docs/KILLINCHU_DATASET_AUDIT_2026-10-03.md)
+connects these contracts to the public OSINT archive. It covers all 300 records
+in five small snapshots and all 99 historical manifest entries, with explicit
+gaps for the raw archive, viewer availability and row-level reuse rights.
+
 The `build/` directory is ignored. The committed [dataset](dataset/) is the reviewable public projection; CI regenerates it byte-for-byte from the input and opportunities. Review its manifest, `sources.public.jsonl`, `needs.json`, `graph.json`, and `second_brain.candidates.jsonl` before any publication. The latter is a staging example using Second Brain's row shape; the separately admitted #396 and #426 forum frontier handles do **not** enter its fixed 575-row retrieval corpus. Two operator-authored topics cannot establish prevalence or product demand.
 
 ## Research method
@@ -45,6 +50,7 @@ The three initial experiments are an experiment-contract skill, evidence adjudic
 - GitHub holds code, schemas, original annotations, operator-authorized metadata, and aggregate outputs after review.
 - A Hugging Face dataset may mirror **only** that reviewed public projection through the repository's governed mirror workflow after its source PR is owner-merged. Reviewed source/data changes on `main` trigger publication; manual dispatch also supports an exact current-main SHA. The workflow binds immutable Git bytes and reads back every provider file byte. The independent alignment workflow runs after publication and daily. Check the provider revision and workflow result before treating it as published; source presence alone is not a release.
 - The first [source-to-provider receipt](evidence/hf-publication-2026-10-02.json) covers only #426. The [two-topic readback receipt](evidence/hf-publication-two-topics-2026-10-02.json) binds merged GitHub source `330f519c8208eb2d6ba29492c778a0a40018195b` to public Hugging Face revision `76e90b85678b501d14090c2964f50c01907dfe1b`; all seven dataset files matched byte-for-byte. Neither version is a model-training dataset.
+- The [automation readback](evidence/hf-automation-readback-2026-10-03.json) verifies all seven reviewed files at stable Hub revision `72964cdc1e325a39c0cb82737e795a23559ae088` against merged GitHub source `9ddef789493acf6e6f75189fa941748cc486d544`. The first automatic publisher and its independent audit succeeded after owner merge; the receipt links both runs. This still covers only the two approved topics.
 - [Second Brain and Anatomy](docs/SECOND_BRAIN_AND_ANATOMY.md) expose both #396 and #426 as source-bound, review-required frontier handles. [Brain PR #31](https://github.com/szl-holdings/szl-second-brain/pull/31) is owner-merged, and the [two-topic live provider readback](evidence/anatomy-publication-two-topics-2026-10-02.json) records 575 retrieval chunks, 131 frontier candidates, and eight sources at Anatomy HF revision `12aa2a4152638b9cfd195f5b94c1f303657d78cd`. This remains `STRUCTURAL_ONLY`: no forum-wide ingest, retrieval-corpus admission, training, or measured research benefit. The [earlier one-topic receipt](evidence/anatomy-publication-2026-10-02.json) is retained as historical evidence.
 
 The [Discourse API documentation](https://docs.discourse.org/) describes supported topic and category pagination. [W3C PROV](https://www.w3.org/TR/prov-o/) supplies the provenance vocabulary, and [Datasheets for Datasets](https://arxiv.org/abs/1803.09010) motivates explicit collection and intended-use documentation. Neither technical access nor robots.txt establishes a content license.
