@@ -10,6 +10,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from szl_forum_corpus import export_audit
 from szl_forum_corpus.export_audit import audit_export, main
 
 
@@ -290,15 +291,21 @@ class ExportAuditTests(unittest.TestCase):
             self.assertEqual(main([str(self.root), "--out", str(output)]), 2)
         self.assertFalse(output.exists())
         alias = self.root / "alias" / "receipt.json"
-        original_resolve = Path.resolve
+        original_resolved = export_audit._resolved
         resolved_output = output.resolve()
 
         def resolved(path, *args, **kwargs):
-            if path == alias:
+            try:
+                same = os.path.normcase(os.path.abspath(os.fspath(path))) == os.path.normcase(
+                    os.path.abspath(os.fspath(alias))
+                )
+            except (OSError, TypeError, ValueError):
+                same = False
+            if same:
                 return resolved_output
-            return original_resolve(path, *args, **kwargs)
+            return original_resolved(path, *args, **kwargs)
 
-        with patch.object(Path, "resolve", resolved), contextlib.redirect_stderr(io.StringIO()):
+        with patch.object(export_audit, "_resolved", resolved), contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(main([str(self.root), "--out", str(alias)]), 2)
         self.assertFalse(alias.parent.exists())
         self.assertEqual(audit_export(self.root)["state"], "DECLARED_EXPORT_COMPLETE")
@@ -328,7 +335,7 @@ class ExportAuditTests(unittest.TestCase):
 
     def test_path_resolution_loop_failure_does_not_leak_paths_or_tracebacks(self):
         stderr = io.StringIO()
-        with patch.object(Path, "resolve", side_effect=RuntimeError(MARKER)):
+        with patch.object(export_audit, "_resolved", side_effect=RuntimeError(MARKER)):
             with contextlib.redirect_stderr(stderr):
                 self.assertEqual(main([str(self.root), "--out", str(self.root / "receipt.json")]), 2)
         self.assertNotIn(MARKER, stderr.getvalue())

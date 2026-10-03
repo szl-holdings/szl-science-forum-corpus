@@ -10,6 +10,7 @@ import argparse
 from datetime import datetime
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import sys
@@ -226,14 +227,30 @@ def audit_export(root: Path) -> dict:
     }
 
 
+def _resolved(path: Path, *, strict: bool = False) -> Path:
+    return path.resolve(strict=strict)
+
+
+def _inside_topics(out: Path, topics: Path) -> bool:
+    """True when the receipt path is inside topics, including 8.3 aliases."""
+    try:
+        if out.is_relative_to(topics):
+            return True
+    except (ValueError, OSError):
+        pass
+    out_s = os.path.normcase(os.path.realpath(os.fspath(out)))
+    topics_s = os.path.normcase(os.path.realpath(os.fspath(topics)))
+    return out_s == topics_s or out_s.startswith(topics_s + os.sep)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("export", type=Path, help="restricted local export directory")
     parser.add_argument("--out", type=Path, required=True, help="new local receipt file")
     args = parser.parse_args(argv)
     try:
-        root = args.export.resolve(strict=True)
-        if args.out.resolve().is_relative_to(root / "topics"):
+        root = _resolved(args.export, strict=True)
+        if _inside_topics(_resolved(args.out), root / "topics"):
             raise ValueError("receipt cannot modify the audited topic directory")
         receipt = audit_export(root)
         data = (json.dumps(receipt, indent=2, sort_keys=True) + "\n").encode("utf-8")
