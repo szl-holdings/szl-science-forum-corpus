@@ -1,0 +1,29 @@
+{
+  "archive_snapshot_revision": "151c198f3f59190f10dd8bbb79493a62d51febbb",
+  "blanket_training_rights": false,
+  "dataset": "SZLHOLDINGS/killinchu-osint-corpus",
+  "files_sha256": {
+    "DATASET_PROVENANCE.json": "1905c84b1e034ed2c76a0c6253682a47841884db0818315f31643f6cace27617",
+    "LICENSE.md": "4367b8c98c996309d5cc765f78ed2d1943b43df7cdf14238e91fa702757323ed",
+    "README.md": "cff6a5f0ae5dc694224609fec82b0176e4183bfb3ef4c3b056e82bcfd940fdd3",
+    "viewer/archive_manifest.jsonl": "0cc2d3930a14513da3dc68d7a07e7210ccb77aacc1d10ba5a67a48a974b4699c"
+  },
+  "head_stable": true,
+  "hf_revision": "d748747371a3a3a386a05a779498ec68904c2e50",
+  "hf_revision_after": "d748747371a3a3a386a05a779498ec68904c2e50",
+  "manifest_entries_verified": 99,
+  "manifest_git_metadata_matches_bound_archive": true,
+  "observed_at": "2026-10-03T02:46:08Z",
+  "provider_writes": false,
+  "raw_shard_bytes_downloaded": 0,
+  "raw_shard_record_count_verified": false,
+  "repair_pr": "https://github.com/szl-holdings/killinchu/pull/487",
+  "row_level_rights_complete": false,
+  "schema": "szl.killinchu-metadata-readback/v1",
+  "shared_shard_writer_repair": "NOT_INCLUDED",
+  "source_files_verified": 5,
+  "source_repository": "szl-holdings/killinchu",
+  "source_revision": "41922353707c346bd34ed8debae9df8dd89b65cc",
+  "state": "VERIFIED_IMMUTABLE_METADATA_READBACK",
+  "verification_state": "STRUCTURAL_ONLY"
+}
