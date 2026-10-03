@@ -271,9 +271,14 @@ def _snapshot(value: object, max_pages: int, max_records: int) -> tuple[dict, di
 
 def _previous(value: object, scope: str, max_pages: int, max_records: int) -> dict:
     fields = {"schema", "origin", "scope", "observed_at", "acquisition", "coverage",
-              "input_sha256", "model_training_authorized", "public_projection_approved",
-              "delta", "records"}
+              "input_sha256", "state_sha256", "model_training_authorized",
+              "public_projection_approved", "delta", "records"}
     prior = _object(value, fields, "previous manifest")
+    state_sha = prior["state_sha256"]
+    if (not isinstance(state_sha, str) or not SHA_RE.fullmatch(state_sha)
+            or hashlib.sha256(_json_bytes({key: item for key, item in prior.items()
+                                           if key != "state_sha256"})).hexdigest() != state_sha):
+        raise ValueError("previous manifest: state digest mismatch")
     if prior["schema"] != OUTPUT_SCHEMA or prior["origin"] != ORIGIN or prior["scope"] != scope:
         raise ValueError("previous manifest: schema, origin, or scope mismatch")
     if prior["model_training_authorized"] is not False or prior["public_projection_approved"] is not False:
@@ -414,6 +419,23 @@ def import_snapshot(export_path: Path, previous_path: Path | None = None, *,
                     or any(previous["coverage"][key] != value
                            for key, value in expected_coverage.items())):
                 raise ValueError("previous manifest: input provenance mismatch")
+            prior_records = {record["source_id"]: record for record in previous["records"]}
+            for source_id, current in seen.items():
+                prior_record = prior_records.get(source_id)
+                if prior_record is None:
+                    raise ValueError("previous manifest: source identity mismatch")
+                expected = {key: value for key, value in current.items() if key != "observed_at"}
+                actual = {key: value for key, value in prior_record.items() if key != "observed_at"}
+                if current["status"] == "tombstone":
+                    # An explicit deletion retains the digest of the formerly
+                    # active revision, which this snapshot cannot reproduce.
+                    expected["source_sha256"] = actual["source_sha256"]
+                if expected != actual:
+                    raise ValueError("previous manifest: source identity mismatch")
+            if (coverage["state"] == "complete"
+                    and any(record["status"] == "active" and source_id not in seen
+                            for source_id, record in prior_records.items())):
+                raise ValueError("previous manifest: complete coverage left an active record unseen")
             return previous_bytes
         if snapshot["observed_at"] <= previous["observed_at"]:
             raise ValueError("snapshot: observation must be newer than previous manifest")
@@ -470,6 +492,7 @@ def import_snapshot(export_path: Path, previous_path: Path | None = None, *,
         "delta": delta,
         "records": [known[key] for key in sorted(known)],
     }
+    manifest["state_sha256"] = hashlib.sha256(_json_bytes(manifest)).hexdigest()
     output = _json_bytes(manifest)
     if len(output) > max_bytes:
         raise ValueError("manifest: byte budget exceeded")

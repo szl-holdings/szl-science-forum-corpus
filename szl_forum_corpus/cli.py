@@ -219,9 +219,6 @@ def _load_opportunities(path: Path) -> list[dict]:
 def build(records: list[dict], opportunities: list[dict], as_of: str) -> dict[str, bytes]:
     date.fromisoformat(as_of)
     approved = sorted((r for r in records if may_publish(r)), key=lambda r: r["source_id"])
-    # Bind only the approved input semantics; private records must not
-    # contribute a publicly guessable digest.
-    public_records_sha256 = hashlib.sha256(_jsonl_bytes(approved)).hexdigest()
     opportunities_sha256 = hashlib.sha256(_json_bytes(opportunities)).hexdigest()
     sources = [
         {
@@ -236,6 +233,9 @@ def build(records: list[dict], opportunities: list[dict], as_of: str) -> dict[st
         }
         for r in approved
     ]
+    # Public commitments cover exactly the public rows. The reviewed input
+    # also contains private attribution, which must not affect a public hash.
+    public_records_sha256 = hashlib.sha256(_jsonl_bytes(sources)).hexdigest()
     need_to_topics: dict[str, set[int]] = defaultdict(set)
     need_to_sources: dict[str, set[str]] = defaultdict(set)
     for record in approved:

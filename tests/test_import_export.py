@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from szl_forum_corpus.import_export import import_snapshot, main
+from szl_forum_corpus.import_export import _json_bytes, import_snapshot, main
 
 
 def post(number=1, *, topic=426, raw="A researcher needs reproducible measurements."):
@@ -92,6 +92,22 @@ class ExportImportTests(unittest.TestCase):
         self.assertEqual(main([str(self.export), "--previous", str(self.previous),
                                "--out", str(self.previous)]), 0)
         self.assertEqual(first, self.previous.read_bytes())
+
+    def test_replayed_snapshot_rejects_tampered_prior_source_digest(self):
+        value = snapshot([post()])
+        self.import_value(value)
+        prior = json.loads(self.previous.read_text(encoding="utf-8"))
+        prior["records"][0]["source_sha256"] = "0" * 64
+        self.previous.write_text(json.dumps(prior), encoding="utf-8")
+        self.write_export(value)
+        with self.assertRaisesRegex(ValueError, "state digest mismatch"):
+            import_snapshot(self.export, self.previous)
+        prior["state_sha256"] = hashlib.sha256(_json_bytes({
+            key: item for key, item in prior.items() if key != "state_sha256"
+        })).hexdigest()
+        self.previous.write_bytes(_json_bytes(prior))
+        with self.assertRaisesRegex(ValueError, "source identity mismatch"):
+            import_snapshot(self.export, self.previous)
 
     def test_partial_continuation_retains_unseen_and_explicit_deletion(self):
         initial = snapshot([post(), post(2)])
@@ -202,7 +218,10 @@ class ExportImportTests(unittest.TestCase):
         self.write_export(current)
         prior = json.loads(self.previous.read_text(encoding="utf-8"))
         prior["coverage"]["known_active"] = 99
-        self.previous.write_text(json.dumps(prior), encoding="utf-8")
+        prior["state_sha256"] = hashlib.sha256(_json_bytes({
+            key: item for key, item in prior.items() if key != "state_sha256"
+        })).hexdigest()
+        self.previous.write_bytes(_json_bytes(prior))
         with self.assertRaisesRegex(ValueError, "counts mismatch"):
             import_snapshot(self.export, self.previous)
 

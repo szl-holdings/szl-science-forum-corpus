@@ -73,6 +73,18 @@ class CorpusContractTests(unittest.TestCase):
             with self.subTest(summary=summary), self.assertRaisesRegex(ValueError, "contact number or credential"):
                 validate_record({**self.record, "summary": summary}, 1)
 
+    def test_private_attribution_does_not_change_public_fingerprint(self):
+        first = build([validate_record(self.record, 1)], OPPORTUNITIES, "2026-10-02")
+        revised = {**self.record, "attribution": "different_private_handle"}
+        second = build([validate_record(revised, 1)], OPPORTUNITIES, "2026-10-02")
+        self.assertEqual(first, second)
+        self.assertNotIn(b"different_private_handle", b"".join(second.values()))
+        manifest = json.loads(second["manifest.json"])
+        self.assertEqual(
+            manifest["public_source_records_sha256"],
+            hashlib.sha256(second["sources.public.jsonl"]).hexdigest(),
+        )
+
     def test_unsafe_url_and_duplicate_source_fail_closed(self):
         unsafe = {**self.record, "source_url": self.record["source_url"] + "?api_key=secret"}
         with self.assertRaises(ValueError):
