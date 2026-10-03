@@ -33,6 +33,10 @@ backup of immutable public source with per-file hashes and explicit client sync
 states. The helper preserves originals and keeps local staging, client sync and
 cloud restore as separate evidence.
 
+The [repeatable backup runner](docs/ONEDRIVE_BACKUP_RUNNER.md) reuses validated
+snapshots, serializes cooperating jobs, pins the provider executable, requests
+immutable cloud copies and records independent readback or explicit failure.
+
 A [bounded Killinchu dataset audit](docs/KILLINCHU_DATASET_AUDIT_2026-10-03.md)
 connects these contracts to the public OSINT archive. It covers all 300 records
 in five small snapshots and all 99 historical manifest entries, with explicit
