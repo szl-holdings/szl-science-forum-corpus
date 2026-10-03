@@ -1,0 +1,32 @@
+{
+  "schema": "szl.forum-corpus.provider-readback/v1",
+  "observed_at": "2026-10-03T00:37:00Z",
+  "state": "PUBLISHED_AND_INDEPENDENTLY_READ_BACK",
+  "source": {
+    "repository": "https://github.com/szl-holdings/szl-science-forum-corpus",
+    "commit": "330f519c8208eb2d6ba29492c778a0a40018195b",
+    "directory": "dataset/"
+  },
+  "provider": {
+    "repository": "https://huggingface.co/datasets/SZLHOLDINGS/szl-science-forum-corpus",
+    "revision": "76e90b85678b501d14090c2964f50c01907dfe1b",
+    "private": false
+  },
+  "workflow_run": "https://github.com/szl-holdings/szl-science-forum-corpus/actions/runs/37082620614",
+  "comparison": "Seven public provider files at the exact revision were compared byte-for-byte with the exact merged Git source commit. The provider-generated .gitattributes was the only additional file.",
+  "files_sha256": {
+    "README.md": "f1cc0dc0bab79029517c0196e635759e4aaa0686d96b3b4d881dacfdc24043de",
+    "graph.json": "50e03db59e5e4ac1661c0b2990f8a0eb7b7040e26412e66ffc0dcd8338a1d1b3",
+    "hypotheses.json": "9f7f36213dd1d6b2d9151c2836c23a65d59e947d7f311df652fa923b7627ecc1",
+    "manifest.json": "6cd9491cbd7ce858c05164995d85308991c03e02c4d46eac227ee2a7aacaef9e",
+    "needs.json": "9b19ceda5497003d3cb6691590e745b516993843e852d9b89dbbea2b910516ab",
+    "second_brain.candidates.jsonl": "9f9cd7f50b11ad6f1971b417dec0f4d1e97e281f1f3aebeea122c8448e23ef8d",
+    "sources.public.jsonl": "833b9e312b9ff4fafaaca636b6b2dce4436e16fbe181934ba0ed933e305882d9"
+  },
+  "admitted_source_records": 2,
+  "source_records_withheld": 0,
+  "model_training_authorized": false,
+  "second_brain_admission": "TOPIC_426_ONLY_FRONTIER_REVIEW_REQUIRED",
+  "anatomy_binding": "TOPIC_426_ONLY_EXISTING_RELEASE",
+  "verification_state": "STRUCTURAL_ONLY"
+}

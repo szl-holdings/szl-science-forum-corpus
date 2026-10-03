@@ -1,6 +1,6 @@
 # Where the forum pilots extend the existing science skills
 
-This is a source review, not a finding about the forum community. The proposed corpus has two operator-authored topics, so it cannot rank community needs or justify training a model. I compared the three proposals in `opportunities.json` with the 30 skill directories in [`szl-holdings/szl-skills` at `b3609d9`](https://github.com/szl-holdings/szl-skills/tree/b3609d9b7d69c14cd1621c91752a8e0233a4ee99) on 2026-10-02. The skill pack's repository tests and release records do not establish Claude Science host registration or measured researcher benefit.
+This is a source review, not a finding about the forum community. The public corpus has two operator-authored topics, so it cannot rank community needs or justify training a model. I compared the three proposals in `opportunities.json` with the 30 skill directories in [`szl-holdings/szl-skills` at `b3609d9`](https://github.com/szl-holdings/szl-skills/tree/b3609d9b7d69c14cd1621c91752a8e0233a4ee99) on 2026-10-02. The skill pack's repository tests and release records do not establish Claude Science host registration or measured researcher benefit.
 
 | Proposed pilot | Existing capabilities to reuse | Smallest genuinely new capability | First discriminating test |
 | --- | --- | --- | --- |

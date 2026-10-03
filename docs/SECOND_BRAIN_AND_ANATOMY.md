@@ -1,12 +1,14 @@
 # Source-bound handoff to Second Brain and Living Anatomy
 
-This document records the first forum pilot release: a published one-topic dataset, a review-required #426 Second Brain frontier candidate, and a source-bound live Anatomy projection. The current GitHub corpus proposal also indexes operator-supplied topic #396; it is not part of this historical Brain/Anatomy release. This is a structural research link, not an evaluated scientific result. No third-party forum threads or post bodies were admitted and no model was trained.
+This document records the first forum pilot release: a published one-topic dataset, a review-required #426 Second Brain frontier candidate, and a source-bound live Anatomy projection. The current [two-topic GitHub/Hugging Face corpus](../evidence/hf-publication-two-topics-2026-10-02.json) also indexes operator-supplied topic #396; it is not part of this historical Brain/Anatomy release. This is a structural research link, not an evaluated scientific result. No third-party forum threads or post bodies were admitted and no model was trained.
 
 ## Exact source and publication
 
 - The operator-authored source record is [`dataset/sources.public.jsonl`](https://github.com/szl-holdings/szl-science-forum-corpus/blob/ac85ddde85c1ae494803c2b16421688c6d3fe7de/dataset/sources.public.jsonl) at Git commit `ac85ddde85c1ae494803c2b16421688c6d3fe7de`, SHA-256 `3edf511b4d021c7eb8286035c8fa444031abe6eb04f06e8718dc0bf29bfba0f9`.
-- The [Hugging Face corpus](https://huggingface.co/datasets/SZLHOLDINGS/szl-science-forum-corpus) is at revision `d8f8fec38361d988fddebec0be7898138af15275`. Its seven published source files were read back byte-for-byte against GitHub source commit `f7359cfbaeb98e724fdf0b7cbcb501b42e5e685e`; the [publication receipt](../evidence/hf-publication-2026-10-02.json) records this boundary.
-- The corpus contains one source topic. It carries no forum post body, third-party reply, private message, or model weight. Its `model_training_authorized` value is `false`.
+- In the first release, the [Hugging Face corpus](https://huggingface.co/datasets/SZLHOLDINGS/szl-science-forum-corpus) was at revision `d8f8fec38361d988fddebec0be7898138af15275`. Its seven published source files were read back byte-for-byte against GitHub source commit `f7359cfbaeb98e724fdf0b7cbcb501b42e5e685e`; the [publication receipt](../evidence/hf-publication-2026-10-02.json) records this boundary.
+- That release contained one source topic. It carried no forum post body, third-party reply, private message, or model weight. Its `model_training_authorized` value was `false`.
+
+Those bullets describe the **first release** used by the Brain source lock below. The current [two-topic publication](../evidence/hf-publication-two-topics-2026-10-02.json) is source commit `330f519c8208eb2d6ba29492c778a0a40018195b` at Hugging Face revision `76e90b85678b501d14090c2964f50c01907dfe1b`. Topic #396 requires a separate Brain source-lock update and Anatomy provider readback before it is a live frontier handle.
 
 ## Second Brain frontier admission
 
@@ -26,4 +28,4 @@ On 2026-10-02, local materialization from exact PR head `577b2a9804f0f3eeff3b850
 
 The independent [Brain health](https://betterwithage-anatomy.hf.space/api/anatomy/v1/brain/health) readback reported merged Brain revision `4f45d201be0b3334c26cf9cb5fe7161f65a229d7`, 575 retrieval chunks, eight frontier sources, 130 candidates, and candidate-set digest `85d3f0d422d1bd0988e2a7d83d4823db7e043a3e7454c3453dba129c27e5414a`. A [source-filtered frontier query](https://betterwithage-anatomy.hf.space/api/anatomy/v1/brain/frontier?q=science%20forum&repository=szl-holdings%2Fszl-science-forum-corpus&k=5) returned exactly one forum handle at source commit `ac85ddde85c1ae494803c2b16421688c6d3fe7de`, with `HANDLES_ONLY` and no content field. Direct access to the internal frontier candidate file returned HTTP 404. The [readback receipt](../evidence/anatomy-publication-2026-10-02.json) binds these observations.
 
-Retain `STRUCTURAL_ONLY` until an independent, rights-cleared research evaluation shows benefit. Neither the recorded one-topic release nor the current two-topic convenience proposal can estimate community prevalence or justify model training. Lambda remains **Conjecture 1 (OPEN)**.
+Retain `STRUCTURAL_ONLY` until an independent, rights-cleared research evaluation shows benefit. Neither the recorded one-topic release nor the current two-topic convenience corpus can estimate community prevalence or justify model training. Lambda remains **Conjecture 1 (OPEN)**.
