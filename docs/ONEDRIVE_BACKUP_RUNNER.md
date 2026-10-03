@@ -93,6 +93,8 @@ The job can be invoked by a scheduler after the code, profile and schedule have
 been reviewed. No scheduled task is installed by this repository change. Windows
 task registration, a real trigger firing and a successful cloud comparison are
 separate observations; a saved task definition alone is not a successful run.
+The [Windows native task guide](WINDOWS_NATIVE_TASKS.md) covers AppData path
+redirection, profile relocation, normal-user setup and fresh task-context evidence.
 
 Offline checks require no cloud credentials or provider access:
 
