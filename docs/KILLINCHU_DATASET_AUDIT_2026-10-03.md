@@ -94,6 +94,21 @@ handling. Regression coverage should include a moving provider head, mismatched
 metadata revisions, expected-parent transmission, HTTP 409/412 rejection, and
 an unknown outcome after a server failure.
 
+**Verified follow-up:** The owner merged
+[Killinchu PR #487](https://github.com/szl-holdings/killinchu/pull/487) as
+`41922353707c346bd34ed8debae9df8dd89b65cc`. The publisher/card suite passed 47
+local tests, and the exact PR head had 45 successful hosted checks with two
+skipped jobs. The repair pins metadata reads and rejects a stale provider parent
+without retrying. The shared shard writer was not changed.
+
+The [independent metadata readback](../evidence/killinchu-publisher-readback-2026-10-03.json)
+verified all four rendered metadata files byte-for-byte at stable HF revision
+`d748747371a3a3a386a05a779498ec68904c2e50`, five source-file hashes against the
+merged Git commit, and all 99 manifest sizes/blob IDs against archive snapshot
+`151c198f3f59190f10dd8bbb79493a62d51febbb`. This is a structural publication
+check. It downloaded no raw shard bytes, did not independently count raw records,
+and retained incomplete row-level rights and no blanket training permission.
+
 The weekly/manual knowledge autosync validates before proposing a source PR. It
 is separate from the HF archive publisher. Its commit signing, exact A11oy source
 binding and actual PR-head CI should be reviewed independently. The classic
