@@ -24,11 +24,52 @@
     ]
   },
   {
-    "independent_topic_count": 1,
+    "independent_topic_count": 2,
     "inference": "descriptive_observation_only",
     "need_id": "skill_import_provenance",
     "source_ids": [
+      "ai4science:396:1",
       "ai4science:426:1"
+    ]
+  },
+  {
+    "independent_topic_count": 1,
+    "inference": "descriptive_observation_only",
+    "need_id": "skill_import_slice",
+    "source_ids": [
+      "ai4science:396:1"
+    ]
+  },
+  {
+    "independent_topic_count": 1,
+    "inference": "descriptive_observation_only",
+    "need_id": "skill_name_collision",
+    "source_ids": [
+      "ai4science:396:1"
+    ]
+  },
+  {
+    "independent_topic_count": 1,
+    "inference": "descriptive_observation_only",
+    "need_id": "skill_service_disclosure",
+    "source_ids": [
+      "ai4science:396:1"
+    ]
+  },
+  {
+    "independent_topic_count": 1,
+    "inference": "descriptive_observation_only",
+    "need_id": "skill_share_action",
+    "source_ids": [
+      "ai4science:396:1"
+    ]
+  },
+  {
+    "independent_topic_count": 1,
+    "inference": "descriptive_observation_only",
+    "need_id": "skill_update_notice",
+    "source_ids": [
+      "ai4science:396:1"
     ]
   }
 ]

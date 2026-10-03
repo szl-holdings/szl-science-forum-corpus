@@ -2,7 +2,7 @@
 
 Subject: Research use of Claude Science discussions and a supported export route
 
-I am an accepted Claude Science community member, posting as `betterwithage`. I have built a small, source-linked pilot from my own topic and would like to study the community's research-workflow problems without misusing the forum or its members' contributions.
+I am an accepted Claude Science community member, posting as `betterwithage`. I have built a small, source-linked pilot from my own topics and would like to study the community's research-workflow problems without misusing the forum or its members' contributions.
 
 Could you clarify whether there is an approved bulk export or API route for **topic and reply content visible to ordinary members**? I would exclude private messages, deleted content, user profiles, email addresses, attachments without separate rights, and any category you designate as out of scope. Please specify rate limits, attribution requirements, retention periods, edit/deletion handling, and any required ethics or privacy review.
 

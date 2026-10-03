@@ -1,6 +1,36 @@
 {
   "edges": [
     {
+      "from": "source:ai4science:396:1",
+      "relation": "raises_candidate_need",
+      "to": "need:skill_import_provenance"
+    },
+    {
+      "from": "source:ai4science:396:1",
+      "relation": "raises_candidate_need",
+      "to": "need:skill_import_slice"
+    },
+    {
+      "from": "source:ai4science:396:1",
+      "relation": "raises_candidate_need",
+      "to": "need:skill_name_collision"
+    },
+    {
+      "from": "source:ai4science:396:1",
+      "relation": "raises_candidate_need",
+      "to": "need:skill_service_disclosure"
+    },
+    {
+      "from": "source:ai4science:396:1",
+      "relation": "raises_candidate_need",
+      "to": "need:skill_share_action"
+    },
+    {
+      "from": "source:ai4science:396:1",
+      "relation": "raises_candidate_need",
+      "to": "need:skill_update_notice"
+    },
+    {
       "from": "source:ai4science:426:1",
       "relation": "raises_candidate_need",
       "to": "need:artifact_replay"
@@ -43,6 +73,11 @@
   ],
   "nodes": [
     {
+      "id": "source:ai4science:396:1",
+      "type": "Source",
+      "url": "https://ai4science.discourse.group/t/feature-request-easier-skill-sharing-in-claude-science-from-a-real-attempt/396/1"
+    },
+    {
       "id": "source:ai4science:426:1",
       "type": "Source",
       "url": "https://ai4science.discourse.group/t/three-testable-science-skills-and-provenance-aware-github-imports/426"
@@ -64,6 +99,31 @@
     },
     {
       "id": "need:skill_import_provenance",
+      "independent_topic_count": 2,
+      "type": "Need"
+    },
+    {
+      "id": "need:skill_import_slice",
+      "independent_topic_count": 1,
+      "type": "Need"
+    },
+    {
+      "id": "need:skill_name_collision",
+      "independent_topic_count": 1,
+      "type": "Need"
+    },
+    {
+      "id": "need:skill_service_disclosure",
+      "independent_topic_count": 1,
+      "type": "Need"
+    },
+    {
+      "id": "need:skill_share_action",
+      "independent_topic_count": 1,
+      "type": "Need"
+    },
+    {
+      "id": "need:skill_update_notice",
       "independent_topic_count": 1,
       "type": "Need"
     },

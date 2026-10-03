@@ -1,6 +1,6 @@
 # SZL Science Forum Corpus
 
-This repository is a **source-linked research index and reproducible analysis kit** for science-workflow needs. The initial dataset contains one topic authored by the SZL operator. It is **not** a scrape of the Claude Science forum, a representative sample, or permission to redistribute other members' posts.
+This repository is a **source-linked research index and reproducible analysis kit** for science-workflow needs. The reviewed GitHub projection contains two topics authored by the SZL operator: #426 and an original summary of #396 supplied by the operator in this conversation. The forum page for #396 was not independently accessible. This is **not** a scrape of the Claude Science forum, a representative sample, or permission to redistribute other members' posts.
 
 The collection boundary is deliberate. The forum redirects anonymous readers to sign-in, and direct JSON topic/category requests returned HTTP 403 on 2026-10-02. We have no documented bulk export or reuse grant. Do not route around those controls, collect private messages, or publish third-party post bodies. An approved site export and explicit use rights are prerequisites for expanding the source index or using post text for retrieval, benchmarks, or training.
 
@@ -13,7 +13,7 @@ python -m szl_forum_corpus build examples/operator_topics.jsonl --out build --as
 python -B -m scripts.verify_projection
 ```
 
-The `build/` directory is ignored. The committed [dataset](dataset/) is the reviewable public projection; CI regenerates it byte-for-byte from the input and opportunities. Review its manifest, `sources.public.jsonl`, `needs.json`, `graph.json`, and `second_brain.candidates.jsonl` before any publication. The latter is a staging example using Second Brain's row shape; the separately admitted forum frontier handle does **not** enter its fixed 575-row retrieval corpus. A build from one operator-authored topic cannot establish prevalence or product demand.
+The `build/` directory is ignored. The committed [dataset](dataset/) is the reviewable public projection; CI regenerates it byte-for-byte from the input and opportunities. Review its manifest, `sources.public.jsonl`, `needs.json`, `graph.json`, and `second_brain.candidates.jsonl` before any publication. The latter is a staging example using Second Brain's row shape; the separately admitted #426 forum frontier handle does **not** enter its fixed 575-row retrieval corpus. Topic #396 is not admitted to that frontier release. Two operator-authored topics cannot establish prevalence or product demand.
 
 ## Research method
 
@@ -29,8 +29,8 @@ The three initial experiments are an experiment-contract skill, evidence adjudic
 
 - GitHub holds code, schemas, original annotations, operator-authorized metadata, and aggregate outputs after review.
 - A Hugging Face dataset may mirror **only** that reviewed public projection through the repository's governed, manual-dispatch mirror workflow after its source PR is merged. The workflow binds an exact main commit and reads back every provider file byte. Check the provider revision and workflow result before treating it as published; source presence alone is not a release.
-- The first public mirror was independently byte-read-back on 2026-10-02; see the [source-to-provider receipt](evidence/hf-publication-2026-10-02.json) for its exact Git and Hugging Face revisions. It remains a one-topic index, not a model-training dataset.
-- [Second Brain and Anatomy](docs/SECOND_BRAIN_AND_ANATOMY.md) now expose one source-bound, review-required forum frontier handle. The Brain integration is owner-merged, and Anatomy has a [live provider readback](evidence/anatomy-publication-2026-10-02.json) as of 2026-10-02. This remains `STRUCTURAL_ONLY`: no forum-wide ingest, retrieval-corpus admission, training, or measured research benefit.
+- The first public mirror was independently byte-read-back on 2026-10-02; see the [source-to-provider receipt](evidence/hf-publication-2026-10-02.json) for its exact Git and Hugging Face revisions. That receipt covers only #426. The second source is a GitHub proposal until a separate, source-bound Hugging Face publication and readback completes. Neither version is a model-training dataset.
+- [Second Brain and Anatomy](docs/SECOND_BRAIN_AND_ANATOMY.md) expose the #426 source-bound, review-required frontier handle. The Brain integration is owner-merged, and Anatomy has a [live provider readback](evidence/anatomy-publication-2026-10-02.json) as of 2026-10-02. Topic #396 needs its own governed source admission and provider readback. This remains `STRUCTURAL_ONLY`: no forum-wide ingest, retrieval-corpus admission, training, or measured research benefit.
 
 The [Discourse API documentation](https://docs.discourse.org/) describes supported topic and category pagination. [W3C PROV](https://www.w3.org/TR/prov-o/) supplies the provenance vocabulary, and [Datasheets for Datasets](https://arxiv.org/abs/1803.09010) motivates explicit collection and intended-use documentation. Neither technical access nor robots.txt establishes a content license.
 
