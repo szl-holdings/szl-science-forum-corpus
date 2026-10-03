@@ -159,3 +159,8 @@ Git clone under OneDrive or run two writers against the same snapshot folder.
 This is an on-demand helper. It does not install a scheduled task or promise
 continuous backup. The reviewed GitHub-to-Hugging-Face automation remains
 described separately in [CORPUS_AUTOMATION.md](CORPUS_AUTOMATION.md).
+
+The [repeatable backup runner](ONEDRIVE_BACKUP_RUNNER.md) combines explicit source
+approval, validated snapshot reuse, a cooperative writer lock, immutable cloud
+copy and bounded independent readback. It also leaves schedule installation as
+a separate operation.
