@@ -9,7 +9,13 @@
       "experiment_design",
       "blocked_allocation"
     ],
+    "observed_need_ids": [
+      "blocked_allocation"
+    ],
     "primary_outcome": "Share of independently reviewed plans meeting every preregistered actionability criterion.",
+    "proposed_only_need_ids": [
+      "experiment_design"
+    ],
     "source_ids": [
       "ai4science:426:1"
     ],
@@ -25,7 +31,13 @@
       "evidence_provenance",
       "skill_import_provenance"
     ],
+    "observed_need_ids": [
+      "skill_import_provenance"
+    ],
     "primary_outcome": "Blinded accuracy of the four-way decision and citation characterization.",
+    "proposed_only_need_ids": [
+      "evidence_provenance"
+    ],
     "source_ids": [
       "ai4science:426:1"
     ],
@@ -41,7 +53,12 @@
       "artifact_replay",
       "measurement_harmonization"
     ],
+    "observed_need_ids": [
+      "artifact_replay",
+      "measurement_harmonization"
+    ],
     "primary_outcome": "Time to a researcher-verified first cause on a held-out reproduction package.",
+    "proposed_only_need_ids": [],
     "source_ids": [
       "ai4science:426:1"
     ],
