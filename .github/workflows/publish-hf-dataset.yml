@@ -29,7 +29,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: szl-science-forum-hf-dataset
+  group: ${{ github.event_name == 'pull_request' && format('szl-science-forum-preflight-{0}', github.event.pull_request.number) || 'szl-science-forum-hf-dataset' }}
   cancel-in-progress: false
 
 jobs:
