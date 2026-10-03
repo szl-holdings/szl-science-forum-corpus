@@ -1,6 +1,14 @@
 # Source-bound handoff to Second Brain and Living Anatomy
 
-This document records the first forum pilot release: a published one-topic dataset, a review-required #426 Second Brain frontier candidate, and a source-bound live Anatomy projection. The current [two-topic GitHub/Hugging Face corpus](../evidence/hf-publication-two-topics-2026-10-02.json) also indexes operator-supplied topic #396; it is not part of this historical Brain/Anatomy release. This is a structural research link, not an evaluated scientific result. No third-party forum threads or post bodies were admitted and no model was trained.
+This document records the current two-topic frontier release and retains the first one-topic release below as historical evidence. The [GitHub/Hugging Face corpus](../evidence/hf-publication-two-topics-2026-10-02.json) indexes the operator's own #396 and #426 summaries, and both are now live review-required Anatomy handles. This is a structural research link, not an evaluated scientific result. No third-party forum threads or post bodies were admitted and no model was trained.
+
+## Two-topic live frontier refresh
+
+Owner-merged [Second Brain PR #31](https://github.com/szl-holdings/szl-second-brain/pull/31), merged source `e6d83c1279141740a1ef248f5781abb0ca4b3354`, accepts exactly the two reviewed operator records at corpus source `330f519c8208eb2d6ba29492c778a0a40018195b`. It rejects unknown or duplicate topics, raw-post fields, altered rights, and duplicate JSON keys. Its generated state has 131 candidates across eight sources, with candidate-set SHA-256 `570fb020f5b8684a0c54ab0f682be1f9ddc975b50cc79f441f399deed5dc862e`. The other 129 candidate rows and all retrieval files are unchanged. The 21 frontier tests, complete 84-test Brain suite, and wheel build passed; Anatomy materialized the exact source and passed its 127-test suite.
+
+[Anatomy sync run 37084587881](https://github.com/szl-holdings/anatomy/actions/runs/37084587881) completed successfully using Anatomy main `a078ebc15e586cbb9e4e7cfb063fc715456ba9ee`. The [two-topic provider receipt](../evidence/anatomy-publication-two-topics-2026-10-02.json) binds the public `RUNNING` Space revision `12aa2a4152638b9cfd195f5b94c1f303657d78cd` to that deployment and merged Brain source. Its independent public health readback reports 575 retrieval chunks, 131 frontier candidates, and eight sources. A source-filtered query returns exactly two handles at corpus revision `330f519c8208eb2d6ba29492c778a0a40018195b`, with no content field; the internal candidate-file path returns HTTP 404.
+
+These observations remain `STRUCTURAL_ONLY`. Public access is `HANDLES_ONLY`; training, promotion, and execution authority remain `NONE`. Topic #396 comes from operator-supplied text and an original summary; its forum page was not independently accessible. Two operator topics do not constitute a forum-wide scrape or establish researcher benefit. Lambda remains **Conjecture 1 (OPEN)**.
 
 ## Exact source and publication
 
@@ -8,7 +16,7 @@ This document records the first forum pilot release: a published one-topic datas
 - In the first release, the [Hugging Face corpus](https://huggingface.co/datasets/SZLHOLDINGS/szl-science-forum-corpus) was at revision `d8f8fec38361d988fddebec0be7898138af15275`. Its seven published source files were read back byte-for-byte against GitHub source commit `f7359cfbaeb98e724fdf0b7cbcb501b42e5e685e`; the [publication receipt](../evidence/hf-publication-2026-10-02.json) records this boundary.
 - That release contained one source topic. It carried no forum post body, third-party reply, private message, or model weight. Its `model_training_authorized` value was `false`.
 
-Those bullets describe the **first release** used by the Brain source lock below. The current [two-topic publication](../evidence/hf-publication-two-topics-2026-10-02.json) is source commit `330f519c8208eb2d6ba29492c778a0a40018195b` at Hugging Face revision `76e90b85678b501d14090c2964f50c01907dfe1b`. Topic #396 requires a separate Brain source-lock update and Anatomy provider readback before it is a live frontier handle.
+Those bullets describe the **first release** used by the historical Brain source lock below. The current [two-topic publication](../evidence/hf-publication-two-topics-2026-10-02.json) is source commit `330f519c8208eb2d6ba29492c778a0a40018195b` at Hugging Face revision `76e90b85678b501d14090c2964f50c01907dfe1b`; its completed Brain source-lock update and Anatomy readback are recorded above.
 
 ## Second Brain frontier admission
 
