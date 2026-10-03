@@ -1,0 +1,30 @@
+{
+  "archetype": "regular",
+  "category_id": 8,
+  "id": 900001,
+  "post_stream": {
+    "posts": [
+      {
+        "cooked": "Original synthetic test record. No researcher or forum contribution.",
+        "id": 910001,
+        "post_number": 1,
+        "post_type": 1,
+        "topic_id": 900001
+      },
+      {
+        "cooked": "Original synthetic test record. No researcher or forum contribution.",
+        "id": 910002,
+        "post_number": 2,
+        "post_type": 1,
+        "topic_id": 900001
+      }
+    ],
+    "stream": [
+      910001,
+      910002
+    ]
+  },
+  "posts_count": 2,
+  "title": "Original synthetic export-audit fixture; not forum content",
+  "visible": true
+}

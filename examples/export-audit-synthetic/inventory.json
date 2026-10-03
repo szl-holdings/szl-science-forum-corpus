@@ -1,0 +1,25 @@
+{
+  "collected_at": "2026-10-02T12:00:00Z",
+  "schema": "szl-discourse-export-inventory-v1",
+  "scope": "declared_topic_set",
+  "site": "https://ai4science.discourse.group",
+  "topics": [
+    {
+      "category_id": 8,
+      "file_sha256": "becbd69be5318596af2d0ae4d73ef342b3cd3f57ea8e28ce08071fb945f59a20",
+      "post_ids": [
+        910001,
+        910002
+      ],
+      "topic_id": 900001
+    },
+    {
+      "category_id": 8,
+      "file_sha256": "35407b1134bf201515cc23bcd635a3696007d7d80f8165b824fb286eccbea5ab",
+      "post_ids": [
+        920001
+      ],
+      "topic_id": 900002
+    }
+  ]
+}
