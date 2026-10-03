@@ -13,6 +13,15 @@ python -m szl_forum_corpus build examples/operator_topics.jsonl --out build --as
 python -B -m scripts.verify_projection
 ```
 
+An [offline export audit](docs/OFFLINE_EXPORT_AUDIT.md) is ready for a permitted
+local export. It checks declared topic and post IDs, exact file hashes, truncated
+hydration, duplicates and unresolved counters, and emits a receipt without post
+text. Run its synthetic example with
+`python -B -m szl_forum_corpus.export_audit examples/export-audit-synthetic --out build/synthetic-export-audit.json`.
+This checks the declared set; it does not establish forum-wide coverage or reuse
+rights. Real exports and their receipts stay in restricted storage outside Git
+and Hub upload directories.
+
 The `build/` directory is ignored. The committed [dataset](dataset/) is the reviewable public projection; CI regenerates it byte-for-byte from the input and opportunities. Review its manifest, `sources.public.jsonl`, `needs.json`, `graph.json`, and `second_brain.candidates.jsonl` before any publication. The latter is a staging example using Second Brain's row shape; the separately admitted #396 and #426 forum frontier handles do **not** enter its fixed 575-row retrieval corpus. Two operator-authored topics cannot establish prevalence or product demand.
 
 ## Research method
