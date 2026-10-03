@@ -3,7 +3,9 @@ import copy
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -289,15 +291,39 @@ class ExportAuditTests(unittest.TestCase):
         self.assertFalse(output.exists())
         alias = self.root / "alias" / "receipt.json"
         original_resolve = Path.resolve
+        resolved_output = output.resolve()
 
         def resolved(path, *args, **kwargs):
             if path == alias:
-                return output
+                return resolved_output
             return original_resolve(path, *args, **kwargs)
 
         with patch.object(Path, "resolve", resolved), contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(main([str(self.root), "--out", str(alias)]), 2)
         self.assertFalse(alias.parent.exists())
+        self.assertEqual(audit_export(self.root)["state"], "DECLARED_EXPORT_COMPLETE")
+
+    def test_real_linked_output_parent_cannot_modify_audited_topics(self):
+        alias = self.root / "topic-alias"
+        target = self.root / "topics"
+        if os.name == "nt":
+            environment = {
+                **os.environ,
+                "SZL_TEST_LINK_PATH": str(alias),
+                "SZL_TEST_TOPIC_PATH": str(target),
+            }
+            result = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+                 "$ErrorActionPreference = 'Stop'; New-Item -ItemType Junction -Path $env:SZL_TEST_LINK_PATH -Target $env:SZL_TEST_TOPIC_PATH | Out-Null"],
+                env=environment, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+            self.assertEqual(result.returncode, 0, "could not create local test junction")
+        else:
+            alias.symlink_to(target, target_is_directory=True)
+        output = alias / "receipt.json"
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(main([str(self.root), "--out", str(output)]), 2)
+        self.assertFalse(output.exists())
         self.assertEqual(audit_export(self.root)["state"], "DECLARED_EXPORT_COMPLETE")
 
     def test_path_resolution_loop_failure_does_not_leak_paths_or_tracebacks(self):
