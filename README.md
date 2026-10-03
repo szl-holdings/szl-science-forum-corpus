@@ -22,6 +22,12 @@ This checks the declared set; it does not establish forum-wide coverage or reuse
 rights. Real exports and their receipts stay in restricted storage outside Git
 and Hub upload directories.
 
+[Corpus automation](docs/CORPUS_AUTOMATION.md) publishes the reviewed projection
+after owner-merged source changes and independently checks the seven GitHub/Hub
+files after publication and daily. It preserves source/provider revision receipts,
+returns nonzero for drift or unavailable evidence, and performs no forum scraping,
+model training or automatic retrieval admission.
+
 The `build/` directory is ignored. The committed [dataset](dataset/) is the reviewable public projection; CI regenerates it byte-for-byte from the input and opportunities. Review its manifest, `sources.public.jsonl`, `needs.json`, `graph.json`, and `second_brain.candidates.jsonl` before any publication. The latter is a staging example using Second Brain's row shape; the separately admitted #396 and #426 forum frontier handles do **not** enter its fixed 575-row retrieval corpus. Two operator-authored topics cannot establish prevalence or product demand.
 
 ## Research method
@@ -37,7 +43,7 @@ The three initial experiments are an experiment-contract skill, evidence adjudic
 ## Publication boundary
 
 - GitHub holds code, schemas, original annotations, operator-authorized metadata, and aggregate outputs after review.
-- A Hugging Face dataset may mirror **only** that reviewed public projection through the repository's governed, manual-dispatch mirror workflow after its source PR is merged. The workflow binds an exact main commit and reads back every provider file byte. Check the provider revision and workflow result before treating it as published; source presence alone is not a release.
+- A Hugging Face dataset may mirror **only** that reviewed public projection through the repository's governed mirror workflow after its source PR is owner-merged. Reviewed source/data changes on `main` trigger publication; manual dispatch also supports an exact current-main SHA. The workflow binds immutable Git bytes and reads back every provider file byte. The independent alignment workflow runs after publication and daily. Check the provider revision and workflow result before treating it as published; source presence alone is not a release.
 - The first [source-to-provider receipt](evidence/hf-publication-2026-10-02.json) covers only #426. The [two-topic readback receipt](evidence/hf-publication-two-topics-2026-10-02.json) binds merged GitHub source `330f519c8208eb2d6ba29492c778a0a40018195b` to public Hugging Face revision `76e90b85678b501d14090c2964f50c01907dfe1b`; all seven dataset files matched byte-for-byte. Neither version is a model-training dataset.
 - [Second Brain and Anatomy](docs/SECOND_BRAIN_AND_ANATOMY.md) expose both #396 and #426 as source-bound, review-required frontier handles. [Brain PR #31](https://github.com/szl-holdings/szl-second-brain/pull/31) is owner-merged, and the [two-topic live provider readback](evidence/anatomy-publication-two-topics-2026-10-02.json) records 575 retrieval chunks, 131 frontier candidates, and eight sources at Anatomy HF revision `12aa2a4152638b9cfd195f5b94c1f303657d78cd`. This remains `STRUCTURAL_ONLY`: no forum-wide ingest, retrieval-corpus admission, training, or measured research benefit. The [earlier one-topic receipt](evidence/anatomy-publication-2026-10-02.json) is retained as historical evidence.
 

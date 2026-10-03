@@ -58,6 +58,34 @@ def _local_git_sha() -> str:
     ).stdout.strip()
 
 
+def source_files(expected_sha: str) -> dict[str, bytes]:
+    """Bind every reviewed local byte to an immutable Git commit before I/O."""
+    if not HEX_40.fullmatch(expected_sha) or expected_sha != _local_git_sha():
+        raise ValueError("source SHA differs from checked-out commit")
+    files = public_files()
+    for name, expected in files.items():
+        actual = subprocess.run(
+            ["git", "show", f"{expected_sha}:dataset/{name}"], cwd=ROOT,
+            check=True, capture_output=True,
+        ).stdout
+        if actual != expected:
+            raise ValueError("working projection differs from exact Git source bytes")
+    return files
+
+
+def _current_main_sha() -> str:
+    lines = subprocess.run(
+        ["git", "ls-remote", "--exit-code", "origin", "refs/heads/main"],
+        cwd=ROOT, check=True, capture_output=True, text=True,
+    ).stdout.splitlines()
+    if len(lines) != 1:
+        raise ValueError("current remote main could not be established")
+    fields = lines[0].split()
+    if len(fields) != 2 or fields[1] != "refs/heads/main" or not HEX_40.fullmatch(fields[0]):
+        raise ValueError("current remote main could not be established")
+    return fields[0]
+
+
 def _read_back(api, revision: str, files: dict[str, bytes], token: str) -> None:
     from huggingface_hub import hf_hub_download
 
@@ -90,6 +118,10 @@ def publish(files: dict[str, bytes], expected_sha: str) -> dict:
         raise ValueError("HF_TOKEN is unavailable")
     if token != token.strip():
         raise ValueError("HF_TOKEN has surrounding whitespace")
+    if files != source_files(expected_sha):
+        raise ValueError("publication bytes differ from exact reviewed Git source")
+    if _current_main_sha() != expected_sha:
+        raise ValueError("publication source is no longer current remote main")
 
     from huggingface_hub import CommitOperationAdd, HfApi
 
@@ -108,9 +140,11 @@ def publish(files: dict[str, bytes], expected_sha: str) -> dict:
         raise ValueError("existing dataset contains unreviewed extra files")
 
     operations = [
-        CommitOperationAdd(path_in_repo=name, path_or_fileobj=DATASET / name)
+        CommitOperationAdd(path_in_repo=name, path_or_fileobj=files[name])
         for name in sorted(files)
     ]
+    if _current_main_sha() != expected_sha:
+        raise ValueError("publication source changed before provider commit")
     commit = _provider_call("create_commit", api.create_commit,
         repo_id=REPO_ID, repo_type="dataset", operations=operations,
         commit_message=f"Mirror signed GitHub source {expected_sha}",

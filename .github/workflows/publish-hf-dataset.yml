@@ -1,6 +1,15 @@
 name: Publish reviewed forum index to Hugging Face
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "dataset/**"
+      - "examples/operator_topics.jsonl"
+      - "opportunities.json"
+      - "scripts/publish_hf.py"
+      - "scripts/verify_projection.py"
+      - ".github/workflows/publish-hf-dataset.yml"
   pull_request:
     paths:
       - "dataset/**"
@@ -35,9 +44,10 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -B -m scripts.publish_hf
+      - run: python -B -m unittest discover -s tests -v
 
   publish:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -54,5 +64,5 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           SZL_HF_PUBLISH_APPROVED: "1"
-          EXPECTED_GIT_SHA: ${{ inputs.expected_git_sha }}
+          EXPECTED_GIT_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_git_sha || github.sha }}
         run: python -B -m scripts.publish_hf --publish --expected-sha "$EXPECTED_GIT_SHA"
