@@ -1,0 +1,30 @@
+{
+  "schema": "szl.source-card-presentation/v1",
+  "source_repository": "szl-holdings/szl-science-forum-corpus",
+  "source_revision": "e9cc13e07216ec1426fc29ad1ed7d8dc67b514bb",
+  "cards": [
+    {
+      "kind": "datasets",
+      "repo_id": "SZLHOLDINGS/szl-science-forum-corpus",
+      "source_path": "dataset/README.md",
+      "source_url": "https://github.com/szl-holdings/szl-science-forum-corpus/blob/e9cc13e07216ec1426fc29ad1ed7d8dc67b514bb/dataset/README.md",
+      "observed_hub_revision": "72964cdc1e325a39c0cb82737e795a23559ae088",
+      "observed_hub_card_sha256": "040f3a38f4978a764ab5c30ce69065cb02290fc76fed8d9c891b97af69ff8aa1",
+      "observed_at": "2026-10-04T16:10:21.407056+00:00",
+      "canonical_publisher": "https://github.com/szl-holdings/szl-science-forum-corpus/blob/e9cc13e07216ec1426fc29ad1ed7d8dc67b514bb/.github/workflows/publish-hf-dataset.yml",
+      "publication_trigger": "PROTECTED_MAIN_PUSH",
+      "publication_state": "SOURCE_REVIEW_PENDING",
+      "artifact": "Two-topic metadata pilot",
+      "stage": "Training unauthorized",
+      "before_sha256": "040f3a38f4978a764ab5c30ce69065cb02290fc76fed8d9c891b97af69ff8aa1",
+      "after_sha256": "51a4731d949ca1501a88d22c4bd8f14892b1794f3709de587444bfdb700598bc",
+      "front_matter_sha256": "41ac1c5beaa03ca15454f4d26daefbfe0da0bac5283a18433749d5dda4a68c66",
+      "preserved_body_sha256": "8b1aa82f4a996bd88e3c7f89fd290087bcd1023ae954f165be74ef9bf627ac8d",
+      "bytes_before": 2391,
+      "bytes_after": 3710,
+      "front_matter_preserved": true,
+      "original_body_preserved": true,
+      "provider_or_runtime_promotion": false
+    }
+  ]
+}
