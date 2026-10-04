@@ -7,6 +7,24 @@ tags:
   - provenance
   - science-workflows
   - metadata-only
+configs:
+  - config_name: sources
+    default: true
+    data_files:
+      - split: train
+        path: sources.public.jsonl
+  - config_name: needs
+    data_files:
+      - split: train
+        path: needs.json
+  - config_name: hypotheses
+    data_files:
+      - split: train
+        path: hypotheses.json
+  - config_name: second_brain_candidates
+    data_files:
+      - split: train
+        path: second_brain.candidates.jsonl
 ---
 
 <p><a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab"><img src="https://raw.githubusercontent.com/szl-holdings/.github/main/profile/assets/szl/logos/szl_mark_holographic.svg" alt="SZL Holdings" width="112" /></a></p>

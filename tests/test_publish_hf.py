@@ -1,10 +1,80 @@
 import json
+from pathlib import Path
 import sys
-from types import SimpleNamespace
+import tempfile
+from types import ModuleType, SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from scripts.publish_hf import _local_git_sha, _provider_call, public_files, publish
+from scripts.publish_hf import _provider_call, public_files, publish
+
+
+SOURCE_SHA = "a" * 40
+BEFORE_SHA = "b" * 40
+AFTER_SHA = "c" * 40
+
+
+class FakeDatasetApi:
+    def __init__(self, files: dict[str, bytes], *, exists: bool = True, private: bool = False):
+        self.files = dict(files)
+        self.exists = exists
+        self.private = private
+        self.sha = BEFORE_SHA
+        self.commits: list[dict] = []
+        self.downloads: list[tuple[str, str]] = []
+
+    def whoami(self):
+        return {"name": "authorized-test-user"}
+
+    def repo_exists(self, repo_id, *, repo_type):
+        self._assert_target(repo_id, repo_type)
+        return self.exists
+
+    def dataset_info(self, repo_id, *, revision=None):
+        self._assert_target(repo_id, "dataset")
+        if revision is not None and revision != self.sha:
+            raise AssertionError("publisher queried a stale or unexpected revision")
+        return SimpleNamespace(
+            sha=self.sha,
+            private=self.private,
+            siblings=[SimpleNamespace(rfilename=name) for name in self.files],
+        )
+
+    def create_commit(self, *, repo_id, repo_type, operations, commit_message, parent_commit):
+        self._assert_target(repo_id, repo_type)
+        if parent_commit != self.sha:
+            raise AssertionError("publisher omitted exact parent binding")
+        uploaded = {operation.path_in_repo: operation.path_or_fileobj.read() for operation in operations}
+        self.commits.append({"files": uploaded, "parent": parent_commit, "message": commit_message})
+        self.files.update(uploaded)
+        self.sha = AFTER_SHA
+        return SimpleNamespace(oid=self.sha)
+
+    @staticmethod
+    def _assert_target(repo_id, repo_type):
+        if (repo_id, repo_type) != ("SZLHOLDINGS/szl-science-forum-corpus", "dataset"):
+            raise AssertionError("publisher used a noncanonical target")
+
+
+def fake_hub(api: FakeDatasetApi, directory: str) -> ModuleType:
+    module = ModuleType("huggingface_hub")
+    module.HfApi = lambda *, token: api
+
+    def operation_add(*, path_in_repo, path_or_fileobj):
+        return SimpleNamespace(path_in_repo=path_in_repo, path_or_fileobj=path_or_fileobj)
+
+    def download(*, repo_id, repo_type, filename, revision, token):
+        api._assert_target(repo_id, repo_type)
+        if revision != api.sha:
+            raise AssertionError("publisher downloaded from a mutable or unexpected revision")
+        api.downloads.append((filename, revision))
+        path = Path(directory) / filename
+        path.write_bytes(api.files[filename])
+        return str(path)
+
+    module.CommitOperationAdd = operation_add
+    module.hf_hub_download = download
+    return module
 
 
 class ProviderGateTests(unittest.TestCase):
@@ -15,8 +85,8 @@ class ProviderGateTests(unittest.TestCase):
         def reject():
             raise RejectedRequest("secret-bearing response text")
 
-        with self.assertRaisesRegex(ValueError, "create_repo: provider RejectedRequest HTTP 400") as caught:
-            _provider_call("create_repo", reject)
+        with self.assertRaisesRegex(ValueError, "inspect_before: provider RejectedRequest HTTP 400") as caught:
+            _provider_call("inspect_before", reject)
         self.assertNotIn("secret-bearing", str(caught.exception))
 
     def test_offline_preflight_has_only_reviewed_metadata(self):
@@ -29,75 +99,115 @@ class ProviderGateTests(unittest.TestCase):
         self.assertEqual(manifest["source_records_withheld"], 0)
 
     def test_publish_rejects_wrong_commit_before_provider_import(self):
-        with self.assertRaisesRegex(ValueError, "expected Git commit"):
-            publish({}, "0" * 40)
+        with patch("scripts.publish_hf._local_git_sha", return_value=SOURCE_SHA):
+            with self.assertRaisesRegex(ValueError, "expected Git commit"):
+                publish({}, "0" * 40)
 
     def test_publish_rejects_nonmain_and_missing_explicit_gate(self):
-        sha = _local_git_sha()
-        with patch.dict("os.environ", {"GITHUB_REF": "refs/heads/feature"}):
+        with patch("scripts.publish_hf._local_git_sha", return_value=SOURCE_SHA), patch.dict("os.environ", {"GITHUB_REF": "refs/heads/feature"}):
             with self.assertRaisesRegex(ValueError, "GitHub main"):
-                publish({}, sha)
-
-    def test_stale_main_or_unbound_bytes_are_rejected_before_provider_calls(self):
-        sha = _local_git_sha()
-        environment = {"GITHUB_REF": "refs/heads/main", "GITHUB_SHA": sha,
-                       "SZL_HF_PUBLISH_APPROVED": "1", "HF_TOKEN": "synthetic-test-token"}
-        with patch.dict("os.environ", environment):
-            with patch("scripts.publish_hf.source_files", return_value={"README.md": b"reviewed"}):
-                with self.assertRaisesRegex(ValueError, "publication bytes"):
-                    publish({}, sha)
-
-    def test_publisher_commits_verified_bytes_at_provider_parent_and_reads_back(self):
-        sha = _local_git_sha()
-        files = {"README.md": b"reviewed-memory-bytes"}
-        commit_calls = []
-
-        def create_commit(**kwargs):
-            commit_calls.append(kwargs)
-            return SimpleNamespace(oid="b" * 40)
-
-        api = SimpleNamespace(
-            whoami=lambda: {"name": "synthetic-publisher"},
-            repo_exists=lambda *args, **kwargs: True,
-            dataset_info=lambda *args, **kwargs: SimpleNamespace(
-                private=False, sha="a" * 40,
-                siblings=[SimpleNamespace(rfilename="README.md")],
-            ),
-            create_commit=create_commit,
-        )
-        sdk = SimpleNamespace(HfApi=lambda **kwargs: api,
-                              CommitOperationAdd=lambda **kwargs: kwargs)
-        environment = {"GITHUB_REF": "refs/heads/main", "GITHUB_SHA": sha,
-                       "SZL_HF_PUBLISH_APPROVED": "1", "HF_TOKEN": "synthetic-test-token"}
-        with patch.dict("os.environ", environment), patch.dict(sys.modules, {"huggingface_hub": sdk}):
-            with patch("scripts.publish_hf.source_files", return_value=files), patch("scripts.publish_hf._current_main_sha", return_value=sha):
-                with patch("scripts.publish_hf._read_back") as read_back:
-                    receipt = publish(files, sha)
-        self.assertEqual(receipt["state"], "PUBLISHED_AND_READ_BACK")
-        self.assertEqual(commit_calls[0]["parent_commit"], "a" * 40)
-        self.assertEqual(commit_calls[0]["operations"][0]["path_or_fileobj"], files["README.md"])
-        read_back.assert_called_once_with(api, "b" * 40, files, "synthetic-test-token")
-
-    def test_main_advancing_during_provider_preflight_stops_before_commit(self):
-        sha = _local_git_sha()
-        api = SimpleNamespace(
-            whoami=lambda: {"name": "synthetic-publisher"},
-            repo_exists=lambda *args, **kwargs: True,
-            dataset_info=lambda *args, **kwargs: SimpleNamespace(private=False, sha="a" * 40, siblings=[]),
-        )
-        sdk = SimpleNamespace(HfApi=lambda **kwargs: api, CommitOperationAdd=lambda **kwargs: kwargs)
-        environment = {"GITHUB_REF": "refs/heads/main", "GITHUB_SHA": sha,
-                       "SZL_HF_PUBLISH_APPROVED": "1", "HF_TOKEN": "synthetic-test-token"}
-        with patch.dict("os.environ", environment), patch.dict(sys.modules, {"huggingface_hub": sdk}):
-            with patch("scripts.publish_hf.source_files", return_value={}), patch("scripts.publish_hf._current_main_sha", side_effect=[sha, "0" * 40]):
-                with self.assertRaisesRegex(ValueError, "changed before provider commit"):
-                    publish({}, sha)
-            with patch("scripts.publish_hf.source_files", return_value={}), patch("scripts.publish_hf._current_main_sha", return_value="0" * 40):
-                with self.assertRaisesRegex(ValueError, "current remote main"):
-                    publish({}, sha)
-        with patch.dict("os.environ", {"GITHUB_REF": "refs/heads/main", "GITHUB_SHA": sha, "SZL_HF_PUBLISH_APPROVED": ""}):
+                publish({}, SOURCE_SHA)
+        with patch("scripts.publish_hf._local_git_sha", return_value=SOURCE_SHA), patch.dict("os.environ", {"GITHUB_REF": "refs/heads/main", "GITHUB_SHA": SOURCE_SHA, "SZL_HF_PUBLISH_APPROVED": ""}):
             with self.assertRaisesRegex(ValueError, "explicit publication gate"):
-                publish({}, sha)
+                publish({}, SOURCE_SHA)
+
+    def _publish_with_fake(
+        self, api: FakeDatasetApi, files: dict[str, bytes], *,
+        admitted_files: dict[str, bytes] | None = None,
+        main_shas: list[str] | None = None,
+    ) -> dict:
+        with tempfile.TemporaryDirectory() as directory:
+            module = fake_hub(api, directory)
+            environment = {
+                "GITHUB_REF": "refs/heads/main",
+                "GITHUB_SHA": SOURCE_SHA,
+                "SZL_HF_PUBLISH_APPROVED": "1",
+                "HF_TOKEN": "test-token",
+            }
+            with patch("scripts.publish_hf._local_git_sha", return_value=SOURCE_SHA), \
+                 patch("scripts.publish_hf.source_files", return_value=files if admitted_files is None else admitted_files), \
+                 patch("scripts.publish_hf._current_main_sha", side_effect=main_shas or [SOURCE_SHA, SOURCE_SHA]), \
+                 patch.dict("os.environ", environment), patch.dict(sys.modules, {"huggingface_hub": module}):
+                return publish(files, SOURCE_SHA)
+
+    def test_unbound_source_bytes_are_rejected_before_provider_access(self):
+        api = FakeDatasetApi({"README.md": b"old"})
+        with self.assertRaisesRegex(ValueError, "publication bytes"):
+            self._publish_with_fake(api, {"README.md": b"unreviewed"},
+                                    admitted_files={"README.md": b"reviewed"})
+        self.assertEqual(api.downloads, [])
+        self.assertEqual(api.commits, [])
+
+    def test_stale_main_is_rejected_before_provider_access(self):
+        api = FakeDatasetApi({"README.md": b"old"})
+        with self.assertRaisesRegex(ValueError, "current remote main"):
+            self._publish_with_fake(api, {"README.md": b"reviewed"}, main_shas=["0" * 40])
+        self.assertEqual(api.downloads, [])
+        self.assertEqual(api.commits, [])
+
+    def test_main_advancing_during_preflight_blocks_changed_and_noop_publication(self):
+        files = {"README.md": b"reviewed"}
+        for provider_card in (b"old", files["README.md"]):
+            with self.subTest(provider_card=provider_card):
+                api = FakeDatasetApi({"README.md": provider_card})
+                with self.assertRaisesRegex(ValueError, "changed before provider commit"):
+                    self._publish_with_fake(api, files, main_shas=[SOURCE_SHA, "0" * 40])
+                self.assertEqual(api.commits, [])
+
+    def test_missing_canonical_dataset_fails_without_creation(self):
+        api = FakeDatasetApi({}, exists=False)
+        with self.assertRaisesRegex(ValueError, "canonical Hugging Face dataset does not exist"):
+            self._publish_with_fake(api, {"README.md": b"public"})
+        self.assertEqual(api.commits, [])
+
+    def test_existing_private_dataset_remains_private(self):
+        api = FakeDatasetApi({"README.md": b"restricted"}, private=True)
+        with self.assertRaisesRegex(ValueError, "existing dataset is private"):
+            self._publish_with_fake(api, {"README.md": b"public"})
+        self.assertEqual(api.commits, [])
+        self.assertEqual(api.downloads, [])
+
+    def test_identical_files_are_read_back_without_a_commit(self):
+        files = {"README.md": b"public card", "manifest.json": b"{}"}
+        api = FakeDatasetApi({**files, ".gitattributes": b"provider generated"})
+        result = self._publish_with_fake(api, files)
+        self.assertEqual(result["state"], "UNCHANGED_AND_READ_BACK")
+        self.assertEqual(result["changed_files"], [])
+        self.assertEqual(result["hf_revision"], BEFORE_SHA)
+        self.assertEqual(api.commits, [])
+        self.assertEqual({name for name, _ in api.downloads}, set(files))
+
+    def test_only_changed_files_are_committed_and_read_back(self):
+        files = {"README.md": b"public card", "manifest.json": b"new manifest", "needs.json": b"new needs"}
+        api = FakeDatasetApi({"README.md": files["README.md"], "manifest.json": b"old manifest"})
+        result = self._publish_with_fake(api, files)
+        self.assertEqual(result["state"], "PUBLISHED_AND_READ_BACK")
+        self.assertEqual(result["changed_files"], ["manifest.json", "needs.json"])
+        self.assertEqual(result["hf_revision"], AFTER_SHA)
+        self.assertEqual(len(api.commits), 1)
+        self.assertEqual(api.commits[0]["parent"], BEFORE_SHA)
+        self.assertEqual(api.commits[0]["files"], {
+            "manifest.json": files["manifest.json"], "needs.json": files["needs.json"]
+        })
+        self.assertEqual(api.files["README.md"], files["README.md"])
+
+    def test_changed_file_requires_exact_provider_readback(self):
+        class TamperingApi(FakeDatasetApi):
+            def create_commit(self, **kwargs):
+                result = super().create_commit(**kwargs)
+                self.files["README.md"] = b"different provider bytes"
+                return result
+
+        api = TamperingApi({"README.md": b"old"})
+        with self.assertRaisesRegex(ValueError, "provider byte mismatch: README.md"):
+            self._publish_with_fake(api, {"README.md": b"reviewed"})
+        self.assertEqual(len(api.commits), 1)
+
+    def test_unreviewed_provider_file_blocks_mutation(self):
+        api = FakeDatasetApi({"README.md": b"old", "private-dump.json": b"restricted"})
+        with self.assertRaisesRegex(ValueError, "unreviewed extra files"):
+            self._publish_with_fake(api, {"README.md": b"new"})
+        self.assertEqual(api.commits, [])
 
 
 if __name__ == "__main__":

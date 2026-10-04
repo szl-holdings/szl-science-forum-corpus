@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -86,9 +87,17 @@ def _current_main_sha() -> str:
     return fields[0]
 
 
-def _read_back(api, revision: str, files: dict[str, bytes], token: str) -> None:
+def _provider_file_bytes(name: str, revision: str, token: str, stage: str) -> bytes:
     from huggingface_hub import hf_hub_download
 
+    path = Path(_provider_call(stage, hf_hub_download,
+        repo_id=REPO_ID, repo_type="dataset", filename=name,
+        revision=revision, token=token
+    ))
+    return path.read_bytes()
+
+
+def _read_back(api, revision: str, files: dict[str, bytes], token: str) -> None:
     info = _provider_call("read_back_info", api.dataset_info, REPO_ID, revision=revision)
     if info.sha != revision or info.private:
         raise ValueError("provider revision or visibility mismatch")
@@ -96,11 +105,7 @@ def _read_back(api, revision: str, files: dict[str, bytes], token: str) -> None:
     if observed - (set(files) | {".gitattributes"}) or set(files) - observed:
         raise ValueError("provider file inventory mismatch")
     for name, expected in files.items():
-        path = Path(_provider_call("read_back_file", hf_hub_download,
-            repo_id=REPO_ID, repo_type="dataset", filename=name,
-            revision=revision, token=token
-        ))
-        if path.read_bytes() != expected:
+        if _provider_file_bytes(name, revision, token, "read_back_file") != expected:
             raise ValueError(f"provider byte mismatch: {name}")
 
 
@@ -130,35 +135,50 @@ def publish(files: dict[str, bytes], expected_sha: str) -> dict:
     if not isinstance(identity, dict) or not identity.get("name"):
         raise ValueError("authenticate: provider returned no account identity")
     exists = _provider_call("repo_exists", api.repo_exists, REPO_ID, repo_type="dataset")
-    if exists and _provider_call("inspect_existing", api.dataset_info, REPO_ID).private:
-        raise ValueError("existing dataset is private; visibility change requires separate review")
     if not exists:
-        _provider_call("create_repo", api.create_repo, REPO_ID, repo_type="dataset", private=False, exist_ok=False)
+        raise ValueError("canonical Hugging Face dataset does not exist; creation requires separate review")
     before = _provider_call("inspect_before", api.dataset_info, REPO_ID)
+    if before.private:
+        raise ValueError("existing dataset is private; visibility change requires separate review")
+    if not isinstance(before.sha, str) or not HEX_40.fullmatch(before.sha):
+        raise ValueError("provider did not return an exact existing commit SHA")
     existing = {entry.rfilename for entry in before.siblings}
     if existing - (set(files) | {".gitattributes"}):
         raise ValueError("existing dataset contains unreviewed extra files")
 
-    operations = [
-        CommitOperationAdd(path_in_repo=name, path_or_fileobj=files[name])
-        for name in sorted(files)
+    changed = [
+        name for name in sorted(files)
+        if name not in existing
+        or _provider_file_bytes(name, before.sha, token, "inspect_file") != files[name]
     ]
     if _current_main_sha() != expected_sha:
         raise ValueError("publication source changed before provider commit")
-    commit = _provider_call("create_commit", api.create_commit,
-        repo_id=REPO_ID, repo_type="dataset", operations=operations,
-        commit_message=f"Mirror signed GitHub source {expected_sha}",
-        parent_commit=before.sha,
-    )
-    revision = commit.oid
-    if not isinstance(revision, str) or not HEX_40.fullmatch(revision):
-        raise ValueError("provider did not return an exact commit SHA")
+    if changed:
+        # Upload the bytes checked by public_files(), rather than rereading a
+        # path that may change between preflight and the provider commit.
+        operations = [
+            CommitOperationAdd(path_in_repo=name, path_or_fileobj=io.BytesIO(files[name]))
+            for name in changed
+        ]
+        commit = _provider_call("create_commit", api.create_commit,
+            repo_id=REPO_ID, repo_type="dataset", operations=operations,
+            commit_message=f"Mirror signed GitHub source {expected_sha}",
+            parent_commit=before.sha,
+        )
+        revision = commit.oid
+        if not isinstance(revision, str) or not HEX_40.fullmatch(revision):
+            raise ValueError("provider did not return an exact commit SHA")
+        state = "PUBLISHED_AND_READ_BACK"
+    else:
+        revision = before.sha
+        state = "UNCHANGED_AND_READ_BACK"
     _read_back(api, revision, files, token)
     return {
-        "state": "PUBLISHED_AND_READ_BACK",
+        "state": state,
         "source_git_sha": expected_sha,
         "dataset": REPO_ID,
         "hf_revision": revision,
+        "changed_files": changed,
         "files_sha256": {name: hashlib.sha256(data).hexdigest() for name, data in sorted(files.items())},
     }
 

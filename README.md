@@ -4,7 +4,7 @@ This repository is a **source-linked research index and reproducible analysis ki
 
 The collection boundary is deliberate. The forum redirects anonymous readers to sign-in, and direct JSON topic/category requests returned HTTP 403 on 2026-10-02. We have no documented bulk export or reuse grant. Do not route around those controls, collect private messages, or publish third-party post bodies. An approved site export and explicit use rights are prerequisites for expanding the source index or using post text for retrieval, benchmarks, or training.
 
-The Python standard-library build accepts reviewed source metadata in JSONL and emits only an approved public projection. It deduplicates by source ID, counts independent *topics* rather than posts, retains source links for review, and labels opportunities as exploratory. Unapproved/member-only records are counted as withheld but never copied into the public outputs.
+The Python standard-library build accepts reviewed source metadata in JSONL and emits only an approved public projection. It deduplicates by source ID, counts independent *topics* rather than posts, retains source links for review, and labels opportunities as exploratory. Proposed need concepts without an admitted source remain separate nodes with zero observed topics. Unapproved/member-only records are counted as withheld but never copied into the public outputs. The manifest binds public source rows, opportunity definitions, generator, schema, and per-file hashes without hashing private review attribution; it explicitly says that forum-wide coverage and the pilot post revision have not been established.
 
 ```powershell
 python -m unittest discover -s tests -v
@@ -42,7 +42,18 @@ connects these contracts to the public OSINT archive. It covers all 300 records
 in five small snapshots and all 99 historical manifest entries, with explicit
 gaps for the raw archive, viewer availability and row-level reuse rights.
 
-The `build/` directory is ignored. The committed [dataset](dataset/) is the reviewable public projection; CI regenerates it byte-for-byte from the input and opportunities. Review its manifest, `sources.public.jsonl`, `needs.json`, `graph.json`, and `second_brain.candidates.jsonl` before any publication. The latter is a staging example using Second Brain's row shape; the separately admitted #396 and #426 forum frontier handles do **not** enter its fixed 575-row retrieval corpus. Two operator-authored topics cannot establish prevalence or product demand.
+The `build/` directory is ignored. The committed [dataset](dataset/) is the reviewable public projection; CI regenerates it byte-for-byte from the input and opportunities. Review its manifest, `sources.public.jsonl`, `needs.json`, `graph.json`, and `second_brain.candidates.jsonl` before any publication. The latter is a staging example using Second Brain's row shape; the separately admitted #396 and #426 forum frontier handles do **not** enter its fixed 575-row retrieval corpus. Two operator-authored topics cannot establish prevalence or product demand. The Hugging Face card defines separate viewer configurations for the four tabular record shapes; provider viewer behavior requires readback after publication.
+
+## Authorized export intake (offline only)
+
+`szl_forum_corpus.import_export` accepts a **normalized local snapshot** prepared from an explicitly authorized export. It does not connect to the forum. The expected shape and synthetic examples are in [the importer tests](tests/test_import_export.py). Each snapshot names one `category_<id>` scope, an acquisition reference, UTC observation time, coverage state, chained page cursors, and posts with exact IDs/URLs, revisions, access, rights, and deletion state. The importer reads raw post text only to calculate a SHA-256 digest, then emits a restricted metadata ledger without raw-post, title, author, contact, profile, or attachment fields. Approval references and revision metadata remain restricted. Its output does not authorize public projection or training.
+
+```powershell
+python -m szl_forum_corpus.import_export PATH_TO_APPROVED_NORMALIZED_EXPORT.json --out import-state/category_17.json
+python -m szl_forum_corpus.import_export PATH_TO_NEXT_APPROVED_EXPORT.json --previous import-state/category_17.json --out import-state/category_17.json
+```
+
+Keep both the export and ledger in an access-controlled location; `import-state/` is ignored by Git. Defaults bound each run to 2 MB, 32 pages, and 2,000 records, with hard ceilings. A blocked or unknown acquisition retains prior records and does not count as an empty forum. Only an explicitly complete snapshot of the same category can tombstone absent posts. Category moves, permissions, and whether a source may yield a public original summary still need human reconciliation and documented rights. There is no live collector or recurring write schedule until the forum operator provides the approved route and reuse scope.
 
 ## Research method
 

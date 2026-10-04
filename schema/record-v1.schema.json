@@ -29,5 +29,5 @@
     "observed_at": {"type": "string", "format": "date"},
     "posted_at": {"type": ["string", "null"], "format": "date"}
   },
-  "description": "Metadata and independently authored summary only. Raw forum bodies, usernames, email addresses, and private messages are outside this schema. The Python validator additionally enforces topic and exact reply URL consistency and publication gates."
+  "description": "Reviewed source metadata and independently authored summary only. Attribution remains in the private review input and is omitted from public rows. Raw forum bodies, email addresses, attachments, credentials, and private messages are outside this schema. The Python validator additionally enforces topic and exact reply URL consistency, contact/credential checks, and publication gates."
 }
