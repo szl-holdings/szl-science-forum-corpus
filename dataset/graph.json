@@ -69,6 +69,16 @@
       "from": "need:measurement_harmonization",
       "relation": "motivates_test",
       "to": "hypothesis:reproduction-triage"
+    },
+    {
+      "from": "need:experiment_design",
+      "relation": "proposed_for_test",
+      "to": "hypothesis:experiment-contract"
+    },
+    {
+      "from": "need:evidence_provenance",
+      "relation": "proposed_for_test",
+      "to": "hypothesis:evidence-adjudication"
     }
   ],
   "nodes": [
@@ -126,6 +136,16 @@
       "id": "need:skill_update_notice",
       "independent_topic_count": 1,
       "type": "Need"
+    },
+    {
+      "id": "need:evidence_provenance",
+      "independent_topic_count": 0,
+      "type": "ProposedNeed"
+    },
+    {
+      "id": "need:experiment_design",
+      "independent_topic_count": 0,
+      "type": "ProposedNeed"
     },
     {
       "evidence_state": "exploratory",

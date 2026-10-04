@@ -26,5 +26,27 @@
       "original_body_preserved": true,
       "provider_or_runtime_promotion": false
     }
+  ],
+  "subsequent_source_updates": [
+    {
+      "schema": "szl.source-card-viewer-config/v1",
+      "source_base_revision": "336eb09e58b60051328ebbe45004a996822683ea",
+      "source_path": "dataset/README.md",
+      "change": "add four named viewer configurations; no presentation or technical-body edits",
+      "before_sha256": "51a4731d949ca1501a88d22c4bd8f14892b1794f3709de587444bfdb700598bc",
+      "after_sha256": "6334dd00b59e8aaeaea6dddb95a138d36bd3b01085fda90991ae1a009d24550d",
+      "configs_sha256": "412c17d84d40b8cd55910d22309ac3c966b1c301cc0aaf9b26a79dd2402cb7f6",
+      "config_names": [
+        "sources",
+        "needs",
+        "hypotheses",
+        "second_brain_candidates"
+      ],
+      "retained_presentation_and_body_exact": true,
+      "original_frontmatter_fields_exact": true,
+      "publication_state": "SOURCE_REVIEW_PENDING",
+      "viewer_behavior": "NOT_VERIFIED",
+      "provider_or_runtime_promotion": false
+    }
   ]
 }

@@ -28,6 +28,23 @@ class CorpusContractTests(unittest.TestCase):
         self.assertEqual(len([node for node in graph["nodes"] if node["type"] == "Source"]), 2)
         self.assertTrue(any(edge["relation"] == "raises_candidate_need" for edge in graph["edges"]))
         self.assertTrue(all(card["evidence_state"] == "exploratory" for card in hypotheses))
+        self.assertEqual(
+            {node["id"] for node in graph["nodes"] if node["type"] == "ProposedNeed"},
+            {"need:experiment_design", "need:evidence_provenance"},
+        )
+        self.assertTrue(all(node["independent_topic_count"] == 0 for node in graph["nodes"] if node["type"] == "ProposedNeed"))
+        self.assertEqual(
+            {need["need_id"] for need in json.loads(outputs["needs.json"])},
+            {
+                "artifact_replay", "blocked_allocation", "measurement_harmonization",
+                "skill_import_provenance", "skill_import_slice", "skill_service_disclosure",
+                "skill_update_notice", "skill_name_collision", "skill_share_action",
+            },
+        )
+        self.assertEqual(hypotheses[0]["proposed_only_need_ids"], ["experiment_design"])
+        self.assertEqual(hypotheses[0]["observed_need_ids"], ["blocked_allocation"])
+        self.assertEqual(manifest["forum_inventory_status"], "not_established_by_this_build")
+        self.assertRegex(manifest["public_source_records_sha256"], r"^[0-9a-f]{64}$")
         self.assertNotIn(b"Following my earlier", outputs["sources.public.jsonl"])
         self.assertNotIn(b"Archive exceeds 100 MB uncompressed", outputs["sources.public.jsonl"])
         candidates = [json.loads(line) for line in outputs["second_brain.candidates.jsonl"].splitlines()]
@@ -38,6 +55,8 @@ class CorpusContractTests(unittest.TestCase):
         shared_need = next(need for need in json.loads(outputs["needs.json"]) if need["need_id"] == "skill_import_provenance")
         self.assertEqual(shared_need["independent_topic_count"], 2)
         self.assertEqual(shared_need["source_ids"], ["ai4science:396:1", "ai4science:426:1"])
+        public_rows = [json.loads(line) for line in outputs["sources.public.jsonl"].splitlines()]
+        self.assertTrue(all("attribution" not in row for row in public_rows))
 
     def test_unknown_rights_and_third_party_member_post_are_withheld(self):
         unknown = copy.deepcopy(self.record)
@@ -61,6 +80,23 @@ class CorpusContractTests(unittest.TestCase):
         email = {**self.record, "summary": "Contact researcher@example.org for details"}
         with self.assertRaisesRegex(ValueError, "email address"):
             validate_record(email, 1)
+        for summary in ("Call +1 (415) 555-0199", "api_key=super-private-key", "hf_abcdefghijklmnopqrstuvwxyz123456"):
+            with self.subTest(summary=summary), self.assertRaisesRegex(ValueError, "contact number or credential"):
+                validate_record({**self.record, "summary": summary}, 1)
+
+    def test_private_attribution_does_not_change_public_fingerprint(self):
+        records = read_records(EXAMPLE)
+        first = build(records, OPPORTUNITIES, "2026-10-02")
+        revised = [validate_record({**record, "attribution": "different_private_handle"}, index)
+                   for index, record in enumerate(records, 1)]
+        second = build(revised, OPPORTUNITIES, "2026-10-02")
+        self.assertEqual(first, second)
+        self.assertNotIn(b"different_private_handle", b"".join(second.values()))
+        manifest = json.loads(second["manifest.json"])
+        self.assertEqual(
+            manifest["public_source_records_sha256"],
+            hashlib.sha256(second["sources.public.jsonl"]).hexdigest(),
+        )
 
     def test_unsafe_url_and_duplicate_source_fail_closed(self):
         unsafe = {**self.record, "source_url": self.record["source_url"] + "?api_key=secret"}
