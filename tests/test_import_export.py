@@ -159,12 +159,58 @@ class BoundedReaderTests(unittest.TestCase):
             nonlocal observations
             value = original_fstat(descriptor)
             observations += 1
-            return SimpleNamespace(**{field: getattr(value, field) for field in fields},
+            metadata = {field: getattr(value, field) for field in fields}
+            if hasattr(value, "st_birthtime_ns"):
+                metadata["st_birthtime_ns"] = value.st_birthtime_ns
+            return SimpleNamespace(**metadata,
                                    st_atime_ns=value.st_atime_ns + observations * 1_000_000_000)
 
         with unittest.mock.patch("szl_forum_corpus.import_export.os.fstat", side_effect=newer_access_time):
             self.assertEqual(_read_bounded(self.path, 100, "snapshot"), b"original")
         self.assertGreaterEqual(observations, 2)
+
+    def windows_metadata(self, *, ctime, birthtime=100):
+        value = self.path.lstat()
+        fields = ("st_dev", "st_ino", "st_mode", "st_nlink", "st_size", "st_mtime_ns")
+        return SimpleNamespace(**{field: getattr(value, field) for field in fields},
+                               st_ctime_ns=ctime, st_birthtime_ns=birthtime)
+
+    def test_windows_creation_and_change_clocks_are_compared_within_their_api(self):
+        path_metadata = self.windows_metadata(ctime=100)
+        descriptor_metadata = self.windows_metadata(ctime=200)
+        with unittest.mock.patch("szl_forum_corpus.import_export.sys.platform", "win32"), \
+             unittest.mock.patch.object(Path, "lstat", return_value=path_metadata), \
+             unittest.mock.patch("szl_forum_corpus.import_export.os.fstat", return_value=descriptor_metadata):
+            self.assertEqual(_read_bounded(self.path, 8, "snapshot"), b"original")
+
+    def test_windows_descriptor_change_clock_mutation_is_rejected(self):
+        path_metadata = self.windows_metadata(ctime=100)
+        descriptors = [self.windows_metadata(ctime=200), self.windows_metadata(ctime=201)]
+        with unittest.mock.patch("szl_forum_corpus.import_export.sys.platform", "win32"), \
+             unittest.mock.patch.object(Path, "lstat", return_value=path_metadata), \
+             unittest.mock.patch("szl_forum_corpus.import_export.os.fstat", side_effect=descriptors):
+            with self.assertRaisesRegex(ValueError, "changed during read"):
+                _read_bounded(self.path, 8, "snapshot")
+
+    def test_windows_path_creation_clock_mutation_is_rejected(self):
+        paths = [self.windows_metadata(ctime=100), self.windows_metadata(ctime=101)]
+        descriptor_metadata = self.windows_metadata(ctime=200)
+        with unittest.mock.patch("szl_forum_corpus.import_export.sys.platform", "win32"), \
+             unittest.mock.patch.object(Path, "lstat", side_effect=paths), \
+             unittest.mock.patch("szl_forum_corpus.import_export.os.fstat", return_value=descriptor_metadata):
+            with self.assertRaisesRegex(ValueError, "changed during read"):
+                _read_bounded(self.path, 8, "snapshot")
+
+    def test_windows_creation_clock_mismatch_is_rejected_before_read(self):
+        path_metadata = self.windows_metadata(ctime=100)
+        descriptor_metadata = self.windows_metadata(ctime=200, birthtime=101)
+        with unittest.mock.patch("szl_forum_corpus.import_export.sys.platform", "win32"), \
+             unittest.mock.patch.object(Path, "lstat", return_value=path_metadata), \
+             unittest.mock.patch("szl_forum_corpus.import_export.os.fstat", return_value=descriptor_metadata), \
+             unittest.mock.patch("szl_forum_corpus.import_export.os.read") as read:
+            with self.assertRaisesRegex(ValueError, "changed before read"):
+                _read_bounded(self.path, 8, "snapshot")
+            read.assert_not_called()
 
     def test_growth_after_open_does_not_expand_the_byte_budget(self):
         original_read = os.read

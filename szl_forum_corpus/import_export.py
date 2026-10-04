@@ -132,10 +132,16 @@ def _strict_json(data: bytes, label: str) -> object:
         raise ValueError(f"{label}: invalid UTF-8 JSON") from exc
 
 
-def _file_identity(value: os.stat_result) -> tuple[int, ...]:
+def _file_identity(value: os.stat_result, *, cross_api: bool = False) -> tuple[int, ...]:
     # Reads may update atime. It is intentionally excluded from consistency checks.
+    clock = value.st_ctime_ns
+    if cross_api and sys.platform == "win32":
+        # CPython 3.12 Windows lstat exposes creation time as ctime, while fstat
+        # exposes ChangeTime. Compare their explicit creation clocks instead.
+        # Older Windows Python lacks birthtime and uses creation time for both.
+        clock = getattr(value, "st_birthtime_ns", clock)
     return (value.st_dev, value.st_ino, value.st_mode, value.st_nlink,
-            value.st_size, value.st_mtime_ns, value.st_ctime_ns)
+            value.st_size, value.st_mtime_ns, clock)
 
 
 def _read_bounded(path: Path, max_bytes: int, label: str) -> bytes:
@@ -158,7 +164,8 @@ def _read_bounded(path: Path, max_bytes: int, label: str) -> bytes:
         raise ValueError(f"{label}: file unavailable or changed before open") from exc
     try:
         opened = os.fstat(descriptor)
-        if not stat.S_ISREG(opened.st_mode) or _file_identity(opened) != _file_identity(before):
+        if (not stat.S_ISREG(opened.st_mode)
+                or _file_identity(opened, cross_api=True) != _file_identity(before, cross_api=True)):
             raise ValueError(f"{label}: file changed before read")
         data = bytearray()
         while len(data) <= max_bytes:
@@ -171,7 +178,7 @@ def _read_bounded(path: Path, max_bytes: int, label: str) -> bytes:
         after = os.fstat(descriptor)
         current = path.lstat()
         if (_file_identity(after) != _file_identity(opened)
-                or _file_identity(current) != _file_identity(opened)
+                or _file_identity(current) != _file_identity(before)
                 or len(data) != opened.st_size):
             raise ValueError(f"{label}: file changed during read")
         return bytes(data)
