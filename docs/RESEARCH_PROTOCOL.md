@@ -8,6 +8,12 @@ The current two-topic operator convenience index is a demonstration only. Its co
 4. **Prevent leakage.** Split whole thread/author/paper/duplicate families across discovery, development, and held-out test sets, and preserve time order. Check examples, retrieval indexes, prompts, and known training data for overlap. A time split does not prove a pretrained model is uncontaminated.
 5. **Evaluate workflow and model separately.** Freeze model, prompt, retrieval snapshot, tools, and scoring. Compare with a checklist/search baseline on the same cases. Blind domain reviewers to the system; report paired uncertainty, abstentions, privacy incidents, cost, latency, and failure cases. A model score is not a scientific result.
 
+The [offline research split auditor](RESEARCH_SPLIT_AUDIT.md) checks declared
+thread/author/paper/duplicate connected families and strict split time ordering.
+Unknown metadata stays unknown. Its original synthetic examples validate the
+software; no real held-out corpus or independent metadata completeness has been
+established by those examples.
+
 Three proposed first trials are: an **experiment-contract skill** (actionable protocol versus a structured template), an **evidence-adjudication skill** (versioned support/contradiction/insufficient/outdated decisions versus search), and a **reproduction-triage skill** (time to a researcher-verified first cause versus a checklist). External diagnostic anchors include [DiscoveryBench](https://arxiv.org/abs/2407.01725), [SciFact](https://aclanthology.org/2020.emnlp-main.609/), and [REPRO-Bench](https://aclanthology.org/2025.findings-acl.1210/); their licenses and task fit require separate review before reuse. The [NIST AI Risk Management Framework](https://airc.nist.gov/airmf-resources/airmf/5-sec-core/) informs the test-set and uncertainty reporting design.
 
 The quantitative pilot targets from the methodology review are **proposed**, not measured: experiment-contract on at least 120 independent cases with expert actionability improvement of 15 percentage points; evidence adjudication on at least 150 balanced cases with macro F1 of 0.80 and no invented citations; reproduction triage on at least 100 packages with the first cause in the top three in 80% of cases and 25% lower median verification time. A development-set pilot and power calculation may require changing these targets before preregistration.
