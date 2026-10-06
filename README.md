@@ -22,6 +22,12 @@ This checks the declared set; it does not establish forum-wide coverage or reuse
 rights. Real exports and their receipts stay in restricted storage outside Git
 and Hub upload directories.
 
+The [offline research split auditor](docs/RESEARCH_SPLIT_AUDIT.md) checks declared
+thread, author, paper and duplicate families across discovery, development and
+held-out splits. It also checks strict time ordering and preserves unknown
+metadata. Original synthetic examples demonstrate both a clean declaration and
+a transitive leakage failure; they do not qualify a research corpus.
+
 [Corpus automation](docs/CORPUS_AUTOMATION.md) publishes the reviewed projection
 after owner-merged source changes and independently checks the seven GitHub/Hub
 files after publication and daily. It preserves source/provider revision receipts,

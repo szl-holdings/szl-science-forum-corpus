@@ -1,0 +1,24 @@
+{
+  "schema": "szl-research-splits-v1",
+  "input_kind": "SIMULATED",
+  "records": [
+    {
+      "record_id": "case_a", "thread_id": 900001, "split": "discovery",
+      "event_time": "2026-01-01T00:00:00Z",
+      "author_hashes": ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+      "paper_hashes": [], "duplicate_hashes": []
+    },
+    {
+      "record_id": "case_b", "thread_id": 900002, "split": "development",
+      "event_time": "2026-02-01T00:00:00Z",
+      "author_hashes": ["bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],
+      "paper_hashes": [], "duplicate_hashes": []
+    },
+    {
+      "record_id": "case_c", "thread_id": 900003, "split": "held_out",
+      "event_time": "2026-03-01T00:00:00Z",
+      "author_hashes": ["cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"],
+      "paper_hashes": [], "duplicate_hashes": []
+    }
+  ]
+}
