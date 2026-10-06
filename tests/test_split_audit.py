@@ -482,7 +482,9 @@ class SplitAuditTests(unittest.TestCase):
                     "2026-01-01 00:00:00Z", "2026-1-01T00:00:00Z",
                     "2026-02-29T00:00:00Z", "2026-13-01T00:00:00Z",
                     "2026-04-31T00:00:00Z", "2026-01-00T00:00:00Z",
-                    "2026-01-01T24:00:00Z", "2026-01-01T00:60:00Z",
+                    "2026-01-01T24:00:00Z", "2026-01-01T24:00:01Z",
+                    "2026-01-01T25:00:00Z", "2026-01-01T99:00:00Z",
+                    "2026-01-01T00:60:00Z",
                     "2026-01-01T00:00:60Z", "0000-01-01T00:00:00Z",
                     "2026-01-01T00:00:00Z\n")
         for invalid in invalids:
@@ -494,6 +496,51 @@ class SplitAuditTests(unittest.TestCase):
         value = manifest()
         value["records"][0]["event_time"] = "2024-02-29T23:59:59Z"
         self.assert_state(self.audit(value), "MEASURED")
+
+    def test_every_canonical_hour_is_accepted_without_rewriting(self):
+        for hour in range(24):
+            with self.subTest(hour=hour):
+                value = manifest()
+                timestamp = f"2026-01-01T{hour:02d}:00:00Z"
+                value["records"][0]["event_time"] = timestamp
+                receipt = self.audit(value)
+                self.assert_state(receipt, "MEASURED")
+                self.assertEqual(receipt["time_windows"]["discovery"], {
+                    "earliest": timestamp, "latest": timestamp,
+                })
+
+    def test_hour_24_cannot_hide_equal_split_boundary_or_create_receipt(self):
+        for left in (0, 1):
+            with self.subTest(earlier_split=SPLITS[left]):
+                value = manifest()
+                value["records"][left]["event_time"] = "2026-02-01T24:00:00Z"
+                value["records"][left + 1]["event_time"] = "2026-02-02T00:00:00Z"
+                with self.assertRaises(ValueError):
+                    self.audit(value)
+                output = self.root / f"hour-24-receipt-{left}.json"
+                self.assert_cli_failure(self.run_cli(output))
+                self.assertFalse(output.exists())
+
+    def test_midnight_boundaries_preserve_strict_order_and_reject_ties(self):
+        for before, midnight in (
+            ("2024-02-29T23:59:59Z", "2024-03-01T00:00:00Z"),
+            ("2026-01-01T23:59:59Z", "2026-01-02T00:00:00Z"),
+            ("2026-12-31T23:59:59Z", "2027-01-01T00:00:00Z"),
+        ):
+            for earlier, later, state in (
+                (before, midnight, "MEASURED"),
+                (midnight, midnight, "BLOCKED"),
+                (midnight, before, "BLOCKED"),
+            ):
+                with self.subTest(earlier=earlier, later=later):
+                    rows = [record(1, "discovery", earlier),
+                            record(2, "development", later),
+                            record(3, "held_out", "2027-01-02T00:00:00Z")]
+                    receipt = self.audit(manifest(rows))
+                    self.assert_state(receipt, state)
+                    self.assertEqual(receipt["time_order_conflicts"], [] if state == "MEASURED" else [
+                        {"earlier_split": "discovery", "later_split": "development"}
+                    ])
 
     def test_cli_exit_codes_zero_three_and_two_match_receipts_and_sanitized_errors(self):
         passed = manifest()

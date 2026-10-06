@@ -28,7 +28,8 @@ FIELDS = {"record_id", "thread_id", "split", "event_time"} | {
 }
 SHA = re.compile(r"[0-9a-f]{64}")
 IDENTIFIER = re.compile(r"[a-z][a-z0-9_-]{0,79}")
-UTC = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
+# Keep hours canonical for string ordering; Python 3.14 accepts 24:00:00.
+UTC = re.compile(r"\d{4}-\d{2}-\d{2}T(?:[01][0-9]|2[0-3]):\d{2}:\d{2}Z")
 
 
 def _timestamp(value: object) -> str | None:
