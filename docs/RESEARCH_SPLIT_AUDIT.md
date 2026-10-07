@@ -61,6 +61,25 @@ The clean fixture exits 0. The leaking fixture exits 3 and identifies a single
 connected family across all three splits. Both have `input_kind: SIMULATED`;
 their results establish software behavior, not a qualified research dataset.
 
+For a readable console summary, add `--format text`:
+
+```powershell
+python -B -m szl_forum_corpus.split_audit examples/split-audit-leaking-synthetic.json --out build/split-summary.json --format text
+```
+
+The summary shows split and family counts, conflicting time-order pairs, absent
+splits, and unknown metadata counts. It retains `UNKNOWN` rights and the false
+training authorization flag. It omits record/thread IDs, family keys, input
+paths and row contents. Keep console logs restricted alongside real receipts.
+The `--out` file always contains the same JSON receipt, with row ordinals and
+input/source hashes for investigation. Default console output remains the
+original compact JSON; `--format json` selects it explicitly. Exit codes and
+exclusive receipt creation are identical in both modes.
+
+This separates compact machine output from aggregate human feedback, inspired
+by [Great Expectations' result formats](https://docs.greatexpectations.io/docs/core/trigger_actions_based_on_results/choose_a_result_format/).
+The auditor uses only the standard library and does not import that framework.
+
 | Exit | State | Meaning |
 | --- | --- | --- |
 | 0 | `MEASURED` | Supplied metadata satisfies the declared family and strict time checks. |
@@ -84,3 +103,12 @@ or absence of model pretraining contamination. It cannot supply the missing
 [forum access and reuse approval](ACQUISITION_AND_RIGHTS.md), admit sources to
 Second Brain or Anatomy, publish data, or activate model training. There are no
 network calls, model loads or tool-execution paths.
+
+## Runtime coverage
+
+The corpus contract keeps its original Python 3.12 job names and adds full-suite
+compatibility runs for Python 3.11, 3.13 and 3.14 on Ubuntu and Windows. This
+covers the declared minimum version and the hour-24 normalization difference
+in Python 3.14. The workflow follows
+[GitHub's Python matrix guidance](https://docs.github.com/en/actions/tutorials/build-and-test-code/python#using-multiple-python-versions);
+it retains the pinned actions, read-only permissions and existing triggers.

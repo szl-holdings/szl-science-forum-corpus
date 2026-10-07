@@ -180,10 +180,40 @@ def audit_splits(path: Path) -> dict:
     }
 
 
+def _text_summary(receipt: dict) -> str:
+    """Render aggregate results only; identifiers remain outside console output."""
+    counts = ", ".join(f"{split}={receipt['split_counts'][split]}" for split in SPLITS)
+    unknowns = ", ".join(
+        f"{kind}={receipt['unknown_metadata_counts'][kind]}"
+        for kind in (*KINDS, "event_time")
+    )
+    lines = [
+        f"Research split audit: {receipt['state']}",
+        f"Scope: supplied metadata only ({receipt['input_kind']})",
+        f"Records: {receipt['record_count']} ({counts})",
+        f"Connected families: {receipt['connected_family_count']}",
+        f"Cross-split families: {len(receipt['cross_split_families'])}",
+        f"Time-order conflicts: {len(receipt['time_order_conflicts'])}",
+    ]
+    for conflict in receipt["time_order_conflicts"]:
+        lines.append(f"  {conflict['earlier_split']} -> {conflict['later_split']}: "
+                     "strict ordering fails (overlap, tie or reversal)")
+    lines.extend([
+        "Absent splits: " + (", ".join(receipt["absent_splits"]) or "none"),
+        "Unknown metadata counts: " + unknowns,
+        "Metadata completeness, pretraining contamination and rights: UNKNOWN",
+        "Model training authorized: false",
+        "JSON receipt contains conflict row ordinals and input/source hashes.",
+    ])
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--format", choices=("json", "text"), default="json",
+                        help="console output format; --out always receives a JSON receipt")
     args = parser.parse_args(argv)
     try:
         receipt = audit_splits(args.input)
@@ -192,7 +222,10 @@ def main(argv: list[str] | None = None) -> int:
         with args.out.open("x", encoding="utf-8", newline="\n") as stream:
             json.dump(receipt, stream, indent=2, sort_keys=True, allow_nan=False)
             stream.write("\n")
-        print(json.dumps({"state": receipt["state"], "record_count": receipt["record_count"]}))
+        if args.format == "text":
+            print(_text_summary(receipt))
+        else:
+            print(json.dumps({"state": receipt["state"], "record_count": receipt["record_count"]}))
         return 0 if receipt["declared_checks_passed"] else 3
     except (OSError, ValueError, RecursionError):
         print("ERROR: invalid or unavailable split input/output; receipt not accepted", file=sys.stderr)
