@@ -63,10 +63,11 @@ class SplitAuditTests(unittest.TestCase):
         self.assertEqual(receipt["state"], state)
         self.assertIs(receipt["declared_checks_passed"], state == "MEASURED")
 
-    def run_cli(self, output, input_path=None):
+    def run_cli(self, output, input_path=None, *, output_format=None):
+        options = [] if output_format is None else ["--format", output_format]
         return subprocess.run(
             [sys.executable, "-B", "-m", "szl_forum_corpus.split_audit",
-             str(self.input if input_path is None else input_path), "--out", str(output)],
+             str(self.input if input_path is None else input_path), "--out", str(output), *options],
             cwd=REPOSITORY, capture_output=True, text=True, timeout=10,
         )
 
@@ -571,6 +572,80 @@ class SplitAuditTests(unittest.TestCase):
         self.input.write_bytes(b'{"synthetic_private_marker": NaN}')
         self.assert_cli_failure(self.run_cli(output))
         self.assertFalse(output.exists())
+
+    def test_text_summary_explains_all_outcomes_without_identifiers(self):
+        passed = manifest()
+        linked = copy.deepcopy(passed)
+        shared = family_key("private-family-marker")
+        for row in linked["records"]:
+            row["author_hashes"] = [shared]
+        tied = copy.deepcopy(passed)
+        tied["records"][1]["event_time"] = TIMES[0]
+        unknown = copy.deepcopy(passed)
+        unknown["records"][0]["paper_hashes"] = None
+        unknown["records"][1]["event_time"] = None
+        absent = manifest(passed["records"][:2])
+        mixed = copy.deepcopy(linked)
+        mixed["records"][0]["event_time"] = None
+        cases = (
+            (passed, "MEASURED", "Cross-split families: 0"),
+            (linked, "BLOCKED", "Cross-split families: 1"),
+            (tied, "BLOCKED", "discovery -> development: strict ordering fails (overlap, tie or reversal)"),
+            (unknown, "UNKNOWN", "paper=1, duplicate=0, event_time=1"),
+            (absent, "UNKNOWN", "Absent splits: held_out"),
+            (mixed, "BLOCKED", "event_time=1"),
+        )
+        for index, (value, state, explanation) in enumerate(cases):
+            with self.subTest(state=state, case=index):
+                self.write_manifest(value)
+                output = self.root / f"summary-{index}.json"
+                result = self.run_cli(output, output_format="text")
+                self.assertEqual(result.returncode, 0 if state == "MEASURED" else 3)
+                self.assertEqual(result.stderr, "")
+                self.assertIn(f"Research split audit: {state}\n", result.stdout)
+                self.assertIn("Scope: supplied metadata only (SIMULATED)", result.stdout)
+                self.assertIn(explanation, result.stdout)
+                self.assertIn("rights: UNKNOWN", result.stdout)
+                self.assertIn("Model training authorized: false", result.stdout)
+                self.assertLess(len(result.stdout), 2000)
+                self.assertEqual(json.loads(output.read_bytes()), self.audit(value))
+                for row in value["records"]:
+                    self.assertNotIn(row["record_id"], result.stdout)
+                    self.assertNotIn(str(row["thread_id"]), result.stdout)
+                self.assertNotIn(shared, result.stdout)
+                self.assertNotIn(str(self.input), result.stdout)
+                self.assertNotIn(str(output), result.stdout)
+
+    def test_output_format_changes_only_console_rendering(self):
+        self.write_manifest(manifest(input_kind="SOURCE_METADATA"))
+        receipts = []
+        results = []
+        for index, output_format in enumerate((None, "json", "text")):
+            output = self.root / f"format-{index}.json"
+            results.append(self.run_cli(output, output_format=output_format))
+            self.assertEqual(results[-1].returncode, 0, results[-1].stderr)
+            receipts.append(output.read_bytes())
+        self.assertEqual(receipts[0], receipts[1])
+        self.assertEqual(receipts[1], receipts[2])
+        self.assertEqual(results[0].stdout, results[1].stdout)
+        self.assertEqual(json.loads(results[0].stdout), {"state": "MEASURED", "record_count": 3})
+        self.assertIn("Scope: supplied metadata only (SOURCE_METADATA)", results[2].stdout)
+
+    def test_text_summary_does_not_accept_invalid_input_or_overwrite_evidence(self):
+        invalid = manifest()
+        invalid["records"][0]["event_time"] = "2026-01-01T24:00:00Z"
+        self.write_manifest(invalid)
+        output = self.root / "invalid-text-receipt.json"
+        self.assert_cli_failure(self.run_cli(output, output_format="text"))
+        self.assertFalse(output.exists())
+        self.write_manifest(manifest())
+        original = b"existing receipt must survive"
+        output.write_bytes(original)
+        self.assert_cli_failure(self.run_cli(output, output_format="text"))
+        self.assertEqual(output.read_bytes(), original)
+        unavailable = self.root / "absent-parent" / "receipt.json"
+        self.assert_cli_failure(self.run_cli(unavailable, output_format="text"))
+        self.assertFalse(unavailable.exists())
 
     def test_cli_preserves_existing_evidence_and_sanitizes_input_output_failures(self):
         self.write_manifest(manifest())
