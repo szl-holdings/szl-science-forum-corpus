@@ -3,6 +3,7 @@
 import itertools
 import json
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -16,6 +17,8 @@ OPERATOR = Context("operator-1", "tenant-a", "operator")
 REVIEWER = Context("reviewer-1", "tenant-a", "reviewer")
 SECOND = Context("reviewer-2", "tenant-a", "reviewer")
 VIEWER = Context("viewer-1", "tenant-a", "viewer")
+OTHER_OPERATOR = Context("operator-9", "tenant-b", "operator")
+SAME_NAME_OTHER_TENANT = Context("reviewer-1", "tenant-b", "reviewer")
 
 
 def text(name):
@@ -60,9 +63,10 @@ class PaperReviewTests(unittest.TestCase):
         revision = self.case(case_id)["revision"]
         return paper_review.record_review_event(self.store, context, self.rid(), case_id, revision, event)
 
-    def effort(self, event, context=REVIEWER, case_id="case-1"):
-        revision = self.case(case_id)["revision"]
-        return paper_review.record_effort(self.store, context, self.rid(), case_id, revision, event)
+    def effort(self, event, context=REVIEWER, case_id="case-1", request=None):
+        revision = self.case(case_id, context)["revision"]
+        return paper_review.record_effort(self.store, context, request or self.rid(), case_id,
+                                          revision, event)
 
     def correct(self, item_id, correction_id, changes, decision="accept"):
         self.event({"type": "propose_correction", "item_id": item_id, "correction_id": correction_id,
@@ -322,6 +326,116 @@ class PaperReviewTests(unittest.TestCase):
         with self.assertRaises(WorkflowError) as caught:
             self.effort({"action": "stop", "session_id": "s1"}, context=SECOND)
         self.assertEqual(caught.exception.code, "FORBIDDEN")
+
+    # ---- one running session per reviewer across cases -------------------------------------
+
+    def unchanged(self, case_id, test):
+        """Run ``test`` (which must be refused) and require that it wrote nothing to the case."""
+
+        before = (self.case(case_id), self.store.history(REVIEWER, case_id))
+        with self.assertRaises(WorkflowError) as caught:
+            test()
+        self.assertEqual((self.case(case_id), self.store.history(REVIEWER, case_id)), before)
+        return caught.exception
+
+    def test_running_session_in_one_case_blocks_start_and_resume_in_another(self):
+        self.registered("case-a")
+        self.registered("case-b")
+        self.effort({"action": "start", "session_id": "b1", "activity": "review"}, case_id="case-b")
+        self.effort({"action": "pause", "session_id": "b1"}, case_id="case-b")
+        self.effort({"action": "start", "session_id": "a1", "activity": "review"}, case_id="case-a")
+        refused = self.unchanged("case-b", lambda: self.effort(
+            {"action": "start", "session_id": "b2", "activity": "repair"}, case_id="case-b"))
+        self.assertEqual((refused.code, refused.fields),
+                         ("INVALID_INPUT", ["session_id", "running_case:case-a"]))
+        refused = self.unchanged("case-b", lambda: self.effort(
+            {"action": "resume", "session_id": "b1"}, case_id="case-b"))
+        self.assertEqual(refused.code, "INVALID_INPUT")
+        # Pausing releases the reviewer: resume in case B now succeeds.
+        self.effort({"action": "pause", "session_id": "a1"}, case_id="case-a")
+        self.effort({"action": "resume", "session_id": "b1"}, case_id="case-b")
+        self.unchanged("case-a", lambda: self.effort(
+            {"action": "resume", "session_id": "a1"}, case_id="case-a"))
+        # Stopping releases too.
+        self.effort({"action": "stop", "session_id": "b1"}, case_id="case-b")
+        self.effort({"action": "resume", "session_id": "a1"}, case_id="case-a")
+        running = [(case_id, session_id) for case_id in ("case-a", "case-b")
+                   for session_id, session in self.case(case_id)["effort"]["sessions"].items()
+                   if session["state"] == "running"]
+        self.assertEqual(running, [("case-a", "a1")])
+
+    def test_other_reviewers_and_tenants_are_not_blocked(self):
+        self.registered("case-a")
+        self.registered("case-b")
+        paper_review.register_case(self.store, OTHER_OPERATOR, self.rid(), case_payload("case-a"))
+        self.effort({"action": "start", "session_id": "a1", "activity": "review"}, case_id="case-a")
+        self.effort({"action": "start", "session_id": "b1", "activity": "review"}, context=SECOND,
+                    case_id="case-b")
+        # The same principal name in another tenant is a different reviewer scope.
+        self.effort({"action": "start", "session_id": "t1", "activity": "review"},
+                    context=SAME_NAME_OTHER_TENANT, case_id="case-a")
+        self.assertEqual(self.case("case-a", SAME_NAME_OTHER_TENANT)["effort"]["sessions"]["t1"]
+                         ["state"], "running")
+        self.assertEqual(self.case("case-b")["effort"]["sessions"]["b1"]["state"], "running")
+        self.assertEqual(self.case("case-a")["effort"]["sessions"]["a1"]["state"], "running")
+
+    def test_competing_starts_for_one_reviewer_record_exactly_one(self):
+        self.registered("case-a")
+        self.registered("case-b")
+        barrier, outcomes = threading.Barrier(2), {}
+        revisions = {case_id: self.case(case_id)["revision"] for case_id in ("case-a", "case-b")}
+        requests = {"case-a": "a" * 32, "case-b": "b" * 32}
+
+        def start(case_id):
+            store = Store(self.path)  # each competitor has its own runtime and connections
+            barrier.wait()
+            try:
+                outcomes[case_id] = paper_review.record_effort(
+                    store, REVIEWER, requests[case_id], case_id, revisions[case_id],
+                    {"action": "start", "session_id": f"s-{case_id}", "activity": "review"})
+            except WorkflowError as error:
+                outcomes[case_id] = error.code
+
+        threads = [threading.Thread(target=start, args=(case_id,)) for case_id in requests]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=60)
+        self.assertEqual(sorted(type(value).__name__ for value in outcomes.values()),
+                         ["dict", "str"])
+        loser = next(case_id for case_id, value in outcomes.items() if value == "INVALID_INPUT")
+        winner = next(case_id for case_id in requests if case_id != loser)
+        self.assertEqual(self.case(loser)["revision"], revisions[loser])
+        self.assertEqual(self.case(loser)["effort"]["sessions"], {})
+        self.assertIsNone(self.store.recover(REVIEWER, requests[loser]))
+        self.assertEqual(self.case(winner)["effort"]["sessions"][f"s-{winner}"]["state"],
+                         "running")
+
+    def test_request_id_replay_cannot_bypass_the_reviewer_guard(self):
+        self.registered("case-a")
+        self.registered("case-b")
+        start_a = {"action": "start", "session_id": "a1", "activity": "review"}
+        start_b = {"action": "start", "session_id": "b1", "activity": "review"}
+        first = self.effort(start_a, case_id="case-a", request="1" * 32)
+        refused_request = "2" * 32
+        self.unchanged("case-b", lambda: self.effort(start_b, case_id="case-b",
+                                                     request=refused_request))
+        self.effort({"action": "pause", "session_id": "a1"}, case_id="case-a")
+        # Replaying the original start returns its recorded result; it does not restart a1.
+        revision = self.case("case-a")["revision"]
+        self.assertEqual(paper_review.record_effort(self.store, REVIEWER, "1" * 32, "case-a", 2,
+                                                    start_a), first)
+        self.assertEqual(self.case("case-a")["revision"], revision)
+        self.assertEqual(self.case("case-a")["effort"]["sessions"]["a1"]["state"], "paused")
+        # A request ID cannot be reused for a different action.
+        with self.assertRaises(WorkflowError) as caught:
+            self.effort(start_b, case_id="case-b", request="1" * 32)
+        self.assertEqual(caught.exception.code, "REQUEST_ID_CONFLICT")
+        # A refused request recorded nothing, so its ID is evaluated afresh once a1 is paused.
+        self.assertIsNone(self.store.recover(REVIEWER, refused_request))
+        self.effort(start_b, case_id="case-b", request=refused_request)
+        self.unchanged("case-a", lambda: self.effort({"action": "resume", "session_id": "a1"},
+                                                     case_id="case-a"))
 
     def test_amendments_append_with_reason_and_null_stays_unknown(self):
         self.registered()

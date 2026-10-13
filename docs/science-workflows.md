@@ -65,8 +65,9 @@ located reference, a bound locator on an accessible source, no unresolved adjudi
 a matching value or an accepted correction.
 
 Effort sessions use the server clock only. Open, paused or interrupted sessions are unknown, not
-zero; one reviewer cannot run two sessions at once; amendments append with a reason; `wait` is
-not staff effort. Rates stay `UNAVAILABLE` without a predeclared scoring policy.
+zero; one reviewer cannot run two sessions at once in any case of the tenant (checked inside
+the store's single-writer transaction, so competing starts record exactly one); amendments
+append with a reason; `wait` is not staff effort. Rates stay `UNAVAILABLE` without a predeclared scoring policy.
 
 ## Build 2: evidence-change recheck queue
 

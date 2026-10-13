@@ -359,6 +359,24 @@ def _reopen(projection: dict, event: dict, context: Context):
 
 # ---- effort -------------------------------------------------------------------------------------
 
+def _refuse_if_running_elsewhere(tx: Transaction, context: Context, case_id: str) -> None:
+    """Enforce one running session per reviewer across every case of the tenant.
+
+    This runs inside the store's single-writer transaction (``BEGIN IMMEDIATE``), so no other
+    command can start or resume a session between this read and the commit. It reads the
+    sessions themselves, so sessions recorded before this check existed are covered too.
+    """
+
+    for other in tx.list(KIND):
+        if other["case_id"] == case_id:
+            continue  # the case being changed is checked from its in-memory projection
+        if any(session["actor"] == context.principal_id and session["state"] == "running"
+               for session in other["effort"]["sessions"].values()):
+            raise WorkflowError("INVALID_INPUT", "stop or pause your running session in another "
+                                "case first; one reviewer's time is never counted twice",
+                                fields=["session_id", f"running_case:{other['case_id']}"])
+
+
 def record_effort(store: Store, context: Context, request_id: str, case_id: str,
                   expected_revision: int, event: dict) -> dict:
     """Start, pause, resume, stop or amend an effort session using the server clock only."""
@@ -380,6 +398,7 @@ def record_effort(store: Store, context: Context, request_id: str, case_id: str,
                    for s in sessions.values()):
                 fail("INVALID_INPUT", "stop or pause your running session first; one reviewer's "
                                       "time is never counted twice")
+            _refuse_if_running_elsewhere(tx, context, case_id)
             sessions[session_id] = {"actor": context.principal_id,
                                     "activity": choice(event["activity"], ACTIVITIES, "activity"),
                                     "state": "running", "intervals": [[now, None]],
@@ -409,6 +428,7 @@ def record_effort(store: Store, context: Context, request_id: str, case_id: str,
                        for other in sessions.values()):
                     fail("INVALID_INPUT", "stop or pause your running session first; one "
                                           "reviewer's time is never counted twice")
+                _refuse_if_running_elsewhere(tx, context, case_id)
                 session["state"] = "running"
                 session["intervals"].append([now, None])
             elif action == "amend":
