@@ -1,0 +1,28 @@
+{
+  "schema": "szl.pinned-kernel-sources.v1",
+  "repository": "szl-holdings/szl-skills",
+  "commit": "3e1f02c137c1e8da4ab0f78196bfa55dc7263984",
+  "license": "Apache-2.0",
+  "notice": "szl_forum_corpus/kernels/NOTICE",
+  "inclusion": "byte-identical build-time copy; never fetched at runtime; never edited here",
+  "kernels": {
+    "research_change_impact.py": {
+      "upstream_path": "skills/szl-research-change-impact/kernel.py",
+      "sha256": "d4c8ea107a7cd458c0eeb345984db40aef524bcac1e322a1de6a34e714d79fbe",
+      "operations": ["szl_plan_research_changes", "szl_change_graph"],
+      "upstream_tests": "tests/test_research_change_impact.py (17), tests/test_research_change_retirement.py (7)"
+    },
+    "paper_rescue.py": {
+      "upstream_path": "pilots/paper-rescue-benchmark/szl-paper-rescue-benchmark/kernel.py",
+      "sha256": "ea1b206fc856aacb55ad020daa601e8f39d3a8de7a9fe3f4e073b2b7865f650f",
+      "operations": ["score", "validate_records", "validate_gold"],
+      "upstream_tests": "tests/test_paper_rescue_benchmark.py (13)"
+    },
+    "figure_data_contract.py": {
+      "upstream_path": "skills/szl-figure-data-contract/scripts/run.py",
+      "sha256": "fa50809807820368668a2f53263d77dd9042fc7418308440f8b4cd1f5ab4fc58",
+      "operations": ["load_contract", "make_svg", "sidecar", "inspect_svg"],
+      "upstream_tests": "tests/test_figure_data_contract.py (18)"
+    }
+  }
+}
