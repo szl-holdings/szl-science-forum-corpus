@@ -3,6 +3,7 @@
 import http.client
 import json
 import secrets
+import shutil
 import tempfile
 import threading
 import unittest
@@ -15,7 +16,7 @@ from szl_forum_corpus.web import workflow_routes as routes
 from szl_forum_corpus.workflows import change_recheck, figure_check, paper_review
 from szl_forum_corpus.workflows.store import Store
 
-FIXTURES = Path(__file__).resolve().parent / "fixtures" / "science_workflows"
+FIXTURES = Path(paper_review.__file__).resolve().parent / "fixtures"
 BASE = "/operator/science"
 API = "/api/science/v1"
 
@@ -28,7 +29,8 @@ class WebTests(unittest.TestCase):
 
     def start(self):
         self.store = Store(self.db)
-        self.server = routes.LocalServer(self.store, 0, fixtures=FIXTURES)
+        # No fixtures argument: every web test exercises the default bundled-fixture path.
+        self.server = routes.LocalServer(self.store, 0)
         self.thread = threading.Thread(target=self.server.serve_forever,
                                        kwargs={"poll_interval": 0.05}, daemon=True)
         self.thread.start()
@@ -341,6 +343,39 @@ class WebTests(unittest.TestCase):
             self.assertEqual((status, payload["error"]["code"]), (503, "KERNEL_UNAVAILABLE"))
         status, _, _ = self.request("GET", f"{API}/figure-checks/blocked-check")
         self.assertEqual(status, 404)
+
+    def test_default_fixture_path_is_the_packaged_copy(self):
+        self.assertEqual(Path(str(self.server.app.fixtures)), FIXTURES)
+        self.assertEqual(self.get_json(f"{API}/capabilities")["fixtures"], "AVAILABLE")
+        self.load("paper")
+        case = self.get_json(f"{API}/paper-cases/demo-paper")
+        self.assertEqual(case["provenance"], "szl_forum_corpus/workflows/fixtures/PROVENANCE.md")
+
+    def test_explicit_fixture_override_still_works_and_none_is_blocked(self):
+        headers = {"host": ["127.0.0.1:1"], "origin": ["http://127.0.0.1:1"],
+                   "content-type": ["application/x-www-form-urlencoded"]}
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory) / "fixtures"
+            shutil.copytree(FIXTURES, copy)
+            store = Store(Path(directory) / "override.sqlite3")
+            app = routes.WorkflowApp(store, "127.0.0.1:1", fixtures=copy)
+            body = urlencode({"csrf": app.csrf, "request_id": "e" * 32, "which": "paper"}).encode()
+            response = app.handle("POST", f"{BASE}/fixtures",
+                                  dict(headers, **{"content-length": [str(len(body))]}), body)
+            self.assertEqual((response.status, response.headers["Location"]),
+                             (303, f"{BASE}/paper-review/demo-paper"))
+            blocked = routes.WorkflowApp(Store(Path(directory) / "none.sqlite3"), "127.0.0.1:1",
+                                         fixtures=None)
+            body = urlencode({"csrf": blocked.csrf, "request_id": "f" * 32,
+                              "which": "paper"}).encode()
+            response = blocked.handle("POST", f"{BASE}/fixtures",
+                                      dict(headers, **{"content-length": [str(len(body))]}), body)
+            self.assertEqual(response.status, 503)
+            self.assertIn(b"CAPABILITY_UNAVAILABLE", response.body)
+            capabilities = json.loads(blocked.handle("GET", f"{API}/capabilities",
+                                                     {"host": ["127.0.0.1:1"]}, b"").body)
+            self.assertEqual(capabilities["fixtures"], "BLOCKED")
+            self.assertEqual(blocked.store.list(blocked.context, paper_review.KIND), [])
 
     def test_database_must_live_outside_the_repository(self):
         with self.assertRaises(SystemExit):

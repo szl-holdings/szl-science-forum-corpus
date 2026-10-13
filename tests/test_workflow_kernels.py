@@ -61,7 +61,7 @@ class KernelPinTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, "KERNEL_NOT_PINNED")
 
     def test_a_blocked_kernel_is_a_503_never_a_result(self):
-        fixtures = ROOT / "tests" / "fixtures" / "science_workflows" / "paper_review"
+        fixtures = Path(paper_review.__file__).resolve().parent / "fixtures" / "paper_review"
         with tempfile.TemporaryDirectory() as directory:
             store = Store(Path(directory) / "w.sqlite3")
             context = Context("o", "t", "operator")

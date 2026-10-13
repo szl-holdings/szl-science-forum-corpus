@@ -135,15 +135,23 @@ JSON commands need the `X-SZL-CSRF` header from `/api/science/v1/session`.
 
 ## Fixtures
 
-`tests/fixtures/science_workflows/` holds hand-authored synthetic fixtures (see its
-`PROVENANCE.md`). Expected results in `expected.json` files were derived by hand before the code
-ran. They exercise every falsification case in the build contract: correct, wrong value, wrong
-unit, ambiguous identity, noncomparable endpoint, missing, abstained, unresolved reference,
-inaccessible source and unexpected candidate; shared-ancestor changes, a removed dependency with
-unchanged output bytes, a removed required claim, unknown revision, access denial, a disputed
-edge, cycles, stale resolution and malformed snapshots; moved, removed and relabelled points,
-altered sidecars, reformatting, non-finite values, invalid captions, extra or missing members,
-malformed SVG, DTDs and external references.
+`szl_forum_corpus/workflows/fixtures/` holds hand-authored synthetic fixtures (see its
+`PROVENANCE.md`). They ship as package data, so a normal wheel installation loads them through
+the workbench's default path (`importlib.resources`); `WorkflowApp` and `LocalServer` still accept
+an explicit `fixtures=` directory, and `fixtures=None` reports the loader as `BLOCKED`.
+`tests/test_workflow_packaging.py` checks that the package-data declaration covers every fixture
+file and loads all three fixtures from a package copy outside the checkout; the CI
+`installed-wheel` job builds the real wheel, installs it into a clean virtual environment outside
+the checkout and does the same through HTTP (`tests/installed_wheel_acceptance.py`).
+
+Expected results in `expected.json` files were derived by hand before the code ran. They
+exercise every falsification case in the build contract: correct, wrong value, wrong unit,
+ambiguous identity, noncomparable endpoint, missing, abstained, unresolved reference, inaccessible
+source and unexpected candidate; shared-ancestor changes, a removed dependency with unchanged
+output bytes, a removed required claim, unknown revision, access denial, a disputed edge, cycles,
+stale resolution and malformed snapshots; moved, removed and relabelled points, altered sidecars,
+reformatting, non-finite values, invalid captions, extra or missing members, malformed SVG, DTDs
+and external references.
 
 ## Not established
 

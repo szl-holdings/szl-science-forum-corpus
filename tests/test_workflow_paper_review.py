@@ -11,7 +11,7 @@ from szl_forum_corpus.workflows import paper_review
 from szl_forum_corpus.workflows.contracts import WorkflowError
 from szl_forum_corpus.workflows.store import Context, Store
 
-FIXTURES = Path(__file__).resolve().parent / "fixtures" / "science_workflows" / "paper_review"
+FIXTURES = Path(paper_review.__file__).resolve().parent / "fixtures" / "paper_review"
 OPERATOR = Context("operator-1", "tenant-a", "operator")
 REVIEWER = Context("reviewer-1", "tenant-a", "reviewer")
 SECOND = Context("reviewer-2", "tenant-a", "reviewer")
@@ -25,7 +25,7 @@ def text(name):
 def case_payload(case_id="case-1", records=None, reference=None, access="available", **changes):
     payload = {
         "case_id": case_id, "protocol_revision": "synthetic-protocol.v1",
-        "evidence_kind": "synthetic", "provenance": "tests/fixtures/science_workflows/PROVENANCE.md",
+        "evidence_kind": "synthetic", "provenance": "szl_forum_corpus/workflows/fixtures/PROVENANCE.md",
         "records_document": records if records is not None else text("records.json"),
         "reference_document": reference if reference is not None else text("reference.json"),
         "reference_independent": False, "reference_complete": True, "source_access": access,

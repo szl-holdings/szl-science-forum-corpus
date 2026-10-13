@@ -12,6 +12,8 @@ import argparse
 from dataclasses import dataclass, field
 import hashlib
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from importlib import resources
+from importlib.resources.abc import Traversable
 import json
 from pathlib import Path
 import re
@@ -35,7 +37,17 @@ MAX_JSON = 4 * 1024 * 1024
 MAX_HEADER_BYTES = 16 * 1024
 MAX_FIELDS = 24
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_FIXTURES = REPO_ROOT / "tests" / "fixtures" / "science_workflows"
+
+
+def bundled_fixtures() -> Traversable:
+    """The synthetic fixtures shipped as package data, wherever the package is installed."""
+
+    return resources.files("szl_forum_corpus.workflows").joinpath("fixtures")
+
+
+DEFAULT_FIXTURES = bundled_fixtures()
+# Recorded as each fixture record's provenance: the package-relative location of PROVENANCE.md.
+FIXTURE_PROVENANCE = "szl_forum_corpus/workflows/fixtures/PROVENANCE.md"
 ID = r"([A-Za-z][A-Za-z0-9_.-]{0,63})"
 TASK_ID = r"(task-[0-9a-f]{24})"
 
@@ -148,7 +160,8 @@ def exact_form(form: dict[str, str], names: set[str]) -> None:
 class WorkflowApp:
     """Route registration and request admission, independent of the socket server."""
 
-    def __init__(self, store: Store, host: str, *, fixtures: Path | None = DEFAULT_FIXTURES,
+    def __init__(self, store: Store, host: str, *,
+                 fixtures: Path | Traversable | None = DEFAULT_FIXTURES,
                  context: Context = DEMO_CONTEXT):
         self.store = store
         self.host = host
@@ -509,13 +522,16 @@ class WorkflowApp:
     # ---- bundled synthetic fixtures --------------------------------------------------------
 
     def _fixtures_ready(self) -> bool:
-        return self.fixtures is not None and (self.fixtures / "PROVENANCE.md").is_file()
+        return self.fixtures is not None and self.fixtures.joinpath("PROVENANCE.md").is_file()
 
     def _fixture(self, *parts: str) -> str:
         if not self._fixtures_ready():
             raise WorkflowError("CAPABILITY_UNAVAILABLE", "the bundled synthetic fixtures are not "
                                                           "present in this installation")
-        return self.fixtures.joinpath(*parts).read_text(encoding="utf-8")
+        location = self.fixtures
+        for part in parts:  # one segment at a time: Traversable.joinpath may take only one
+            location = location.joinpath(part)
+        return location.read_text(encoding="utf-8")
 
     @staticmethod
     def _fixture_request(*parts: str) -> str:
@@ -523,7 +539,7 @@ class WorkflowApp:
         return hashlib.sha256(":".join(("fixture",) + parts).encode("utf-8")).hexdigest()[:32]
 
     def load_fixture(self, which: str) -> str:
-        provenance = "tests/fixtures/science_workflows/PROVENANCE.md"
+        provenance = FIXTURE_PROVENANCE
         ctx, store, key = self.context, self.store, self._fixture_request
         if which == "paper":
             paper_review.register_case(store, ctx, key("paper", "case"), {
@@ -594,7 +610,8 @@ class LocalServer(HTTPServer):
 
     allow_reuse_address = False
 
-    def __init__(self, store: Store, port: int = 0, *, fixtures: Path | None = DEFAULT_FIXTURES):
+    def __init__(self, store: Store, port: int = 0, *,
+                 fixtures: Path | Traversable | None = DEFAULT_FIXTURES):
         super().__init__(("127.0.0.1", port), Handler)
         self.app = WorkflowApp(store, f"127.0.0.1:{self.server_port}", fixtures=fixtures)
 

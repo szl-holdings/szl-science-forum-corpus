@@ -10,7 +10,7 @@ from szl_forum_corpus.workflows import change_recheck as recheck
 from szl_forum_corpus.workflows.contracts import WorkflowError
 from szl_forum_corpus.workflows.store import Context, Store
 
-FIXTURES = Path(__file__).resolve().parent / "fixtures" / "science_workflows" / "change_recheck"
+FIXTURES = Path(recheck.__file__).resolve().parent / "fixtures" / "change_recheck"
 OPERATOR = Context("operator-1", "tenant-a", "operator")
 REVIEWER = Context("reviewer-1", "tenant-a", "reviewer")
 SECOND = Context("reviewer-2", "tenant-a", "reviewer")
@@ -25,7 +25,7 @@ def text(name):
 
 def snapshot(snapshot_id, document, coverage="complete", **extra):
     payload = {"snapshot_id": snapshot_id, "evidence_kind": "synthetic",
-               "provenance": "tests/fixtures/science_workflows/PROVENANCE.md",
+               "provenance": "szl_forum_corpus/workflows/fixtures/PROVENANCE.md",
                "coverage": coverage, "graph_document": document}
     payload.update(extra)
     return payload
