@@ -1,0 +1,31 @@
+{
+  "schema": "szl.native-dataset-card-projection/v1",
+  "evidence_class": "UNSIGNED_SOURCE_PRESENTATION",
+  "source_repository": "szl-holdings/szl-science-forum-corpus",
+  "base_revision": "7275840069f92be99808e831f46bcf1e3cc87cf4",
+  "source_path": "dataset/README.md",
+  "before_sha256": "6334dd00b59e8aaeaea6dddb95a138d36bd3b01085fda90991ae1a009d24550d",
+  "after_sha256": "d87bac04a6e0469bebafad00fa9be74ad8639c6fe387981a89ae5df5c6b38371",
+  "frontmatter_sha256": "b514a8e70ddfd954c9612e85ba02836f43e9f00aea8f879044ed964a83050d18",
+  "preserved_technical_body_sha256": "d7a371c152faa9def3b604890a95bed18ffd9d2cf2030ac2f60d8926073acab2",
+  "original_bytes_reconstructable": true,
+  "change": "Replace obsolete 112px remote emblem with exact native 40px icon; add artwork attribution outside technical content.",
+  "native_art": {
+    "repository": "szl-holdings/szl-brand",
+    "revision": "27d12e77fc0f9f1a0e5fae8b34adf2380d51d070",
+    "path": "kit/logos/orbit-v2/suite/szl-icon-32.svg",
+    "sha256": "6e2b7d72a3af3d9602b79de41df0194ede6496a9661f057108ec224c0efc92e6",
+    "render_width": 40,
+    "render_height": 40,
+    "license": "CC-BY-4.0",
+    "license_scope": "SZL artwork"
+  },
+  "canonical_publisher": ".github/workflows/publish-hf-dataset.yml",
+  "publisher_changed": false,
+  "technical_body_changed": false,
+  "metadata_changed": false,
+  "authority_or_training_claim_changed": false,
+  "historical_presentation_manifest_changed": false,
+  "provider_publication": "NOT_ESTABLISHED_BY_THIS_SOURCE_RECORD",
+  "underlying_dataset_records_changed": false
+}
