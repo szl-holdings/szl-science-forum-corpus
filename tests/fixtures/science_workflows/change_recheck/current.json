@@ -1,0 +1,89 @@
+{
+  "schema": "szl.research-anatomy.v1",
+  "nodes": [
+    {
+      "id": "d1",
+      "kind": "dataset",
+      "title": "Synthetic field survey",
+      "sha256": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+    },
+    {
+      "id": "d2",
+      "kind": "dataset",
+      "title": "Synthetic lab assay batch",
+      "sha256": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+    },
+    {
+      "id": "k1",
+      "kind": "code",
+      "title": "Synthetic cleaning script",
+      "sha256": "c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1"
+    },
+    {
+      "id": "r1",
+      "kind": "run",
+      "title": "Synthetic yield model fit",
+      "depends_on": [
+        "k1",
+        "d2"
+      ],
+      "sha256": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1"
+    },
+    {
+      "id": "r2",
+      "kind": "run",
+      "title": "Synthetic assay summary",
+      "depends_on": [
+        "d2"
+      ],
+      "sha256": "e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2"
+    },
+    {
+      "id": "p1",
+      "kind": "paper",
+      "title": "Synthetic prior review",
+      "sha256": "f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1"
+    },
+    {
+      "id": "c1",
+      "kind": "claim",
+      "title": "Treatment raises yield",
+      "depends_on": [
+        "r1"
+      ]
+    },
+    {
+      "id": "c2",
+      "kind": "claim",
+      "title": "Assay is reproducible",
+      "depends_on": [
+        "r2"
+      ]
+    },
+    {
+      "id": "c3",
+      "kind": "claim",
+      "title": "Effect generalizes",
+      "depends_on": [
+        "r1"
+      ]
+    },
+    {
+      "id": "c5",
+      "kind": "claim",
+      "title": "Prior review agrees"
+    }
+  ],
+  "evidence_links": [
+    {
+      "claim": "c3",
+      "evidence": "p1",
+      "relation": "supports"
+    },
+    {
+      "claim": "c5",
+      "evidence": "p1",
+      "relation": "supports"
+    }
+  ]
+}

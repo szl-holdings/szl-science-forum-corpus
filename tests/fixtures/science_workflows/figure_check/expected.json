@@ -1,0 +1,20 @@
+{
+  "note": "Hand-derived from spec.json and data.csv before the adapter ran: x maps 0..40 onto 60..600 and y maps 1.2..7.9 onto 400..40, six decimal places. Decimal values are normalized as the kernel prints them (10 -> 1E+1).",
+  "plotted_rows": 5,
+  "summary": {"n": 5, "x_min": "0", "x_max": "4E+1", "y_min": "1.2", "y_max": "7.9"},
+  "caption_text": "n=5; x=[0, 4E+1]; y=[1.2, 7.9]",
+  "pixels": {
+    "s1": ["60.000000", "400.000000"],
+    "s2": ["127.500000", "314.029851"],
+    "s3": ["195.000000", "244.179104"],
+    "s4": ["330.000000", "115.223881"],
+    "s5": ["600.000000", "40.000000"]
+  },
+  "sidecar_points": [
+    {"id": "s1", "x": "0", "y": "1.2"},
+    {"id": "s2", "x": "5", "y": "2.8"},
+    {"id": "s3", "x": "1E+1", "y": "4.1"},
+    {"id": "s4", "x": "2E+1", "y": "6.5"},
+    {"id": "s5", "x": "4E+1", "y": "7.9"}
+  ]
+}

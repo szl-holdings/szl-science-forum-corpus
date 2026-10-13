@@ -61,6 +61,13 @@ connects these contracts to the public OSINT archive. It covers all 300 records
 in five small snapshots and all 99 historical manifest entries, with explicit
 gaps for the raw archive, viewer availability and row-level reuse rights.
 
+[Science workflows](docs/science-workflows.md) add three bounded operator tools
+over pinned SZL Skills kernels: a paper extraction review ledger with correction
+history and effort accounting, an evidence-change recheck queue, and a canonical
+CSV-to-SVG figure checker. They run on hand-authored synthetic fixtures behind a
+loopback-only, unauthenticated local workbench with no uploads. They record
+review history; they do not decide that a claim is true.
+
 The `build/` directory is ignored. The committed [dataset](dataset/) is the reviewable public projection; CI regenerates it byte-for-byte from the input and opportunities. Review its manifest, `sources.public.jsonl`, `needs.json`, `graph.json`, and `second_brain.candidates.jsonl` before any publication. The latter is a staging example using Second Brain's row shape; the separately admitted #396 and #426 forum frontier handles do **not** enter its fixed 575-row retrieval corpus. Two operator-authored topics cannot establish prevalence or product demand. The Hugging Face card defines separate viewer configurations for the four tabular record shapes; provider viewer behavior requires readback after publication.
 
 ## Authorized export intake (offline only)

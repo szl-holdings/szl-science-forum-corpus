@@ -1,1 +1,3 @@
 * text=auto eol=lf
+# Pinned kernel copies must keep their exact upstream bytes on every checkout.
+szl_forum_corpus/kernels/*.py -text

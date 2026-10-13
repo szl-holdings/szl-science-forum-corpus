@@ -1,0 +1,30 @@
+{
+  "schema": "szl.paper-rescue.records.v1",
+  "pdf_sha256": "369689e73a41b03166e9a62dbe13d175b69221842a264a515234f25b735592e2",
+  "declared_pages": 3,
+  "rights": {
+    "basis": "operator-created",
+    "evidence_uri": "fixture://szl-science-forum-corpus/tests/fixtures/science_workflows/PROVENANCE.md",
+    "attestation_id": "szl-synthetic-paper-review-2026-10-13",
+    "local_processing_authorized": true,
+    "contains_patient_data": false
+  },
+  "pipeline": {
+    "name": "hand-authored-synthetic-records",
+    "version": "1",
+    "ocr_engine": "none",
+    "remote_services_used": false
+  },
+  "items": [
+    {"id": "t1_correct", "kind": "cell", "status": "LOCATED", "page": 1, "bbox": [0.10, 0.20, 0.30, 0.25], "text": "12.5", "row_header": "Control", "column_header": "Mean yield", "unit": "g"},
+    {"id": "t2_wrong_value", "kind": "cell", "status": "LOCATED", "page": 1, "bbox": [0.10, 0.25, 0.30, 0.30], "text": "13.8", "row_header": "Treated", "column_header": "Mean yield", "unit": "g"},
+    {"id": "t3_wrong_unit", "kind": "cell", "status": "LOCATED", "page": 2, "bbox": [0.40, 0.10, 0.60, 0.15], "text": "4.2", "row_header": "Buffer A", "column_header": "Concentration", "unit": "mM"},
+    {"id": "t4_ambiguous_identity", "kind": "cell", "status": "LOCATED", "page": 2, "bbox": [0.40, 0.15, 0.60, 0.20], "text": "0.91", "row_header": "Sample 7", "column_header": "Ratio", "unit": "1"},
+    {"id": "t5_noncomparable_endpoint", "kind": "cell", "status": "LOCATED", "page": 2, "bbox": [0.40, 0.20, 0.60, 0.25], "text": "28", "row_header": "Day 28", "column_header": "Survival", "unit": "%"},
+    {"id": "t7_abstained", "kind": "cell", "status": "UNRESOLVED", "reason": "merged header could not be assigned"},
+    {"id": "t8_unresolved_reference", "kind": "caption", "status": "LOCATED", "page": 3, "bbox": [0.10, 0.80, 0.90, 0.85], "text": "Figure 2. Yield by treatment."},
+    {"id": "t9_wrong_locator", "kind": "cell", "status": "LOCATED", "page": 3, "bbox": [0.10, 0.20, 0.30, 0.25], "text": "7", "row_header": "Replicates", "column_header": "Count", "unit": "1"},
+    {"id": "c1_caption", "kind": "caption", "status": "LOCATED", "page": 1, "bbox": [0.10, 0.70, 0.90, 0.75], "text": "Table 1. Mean yield by arm."},
+    {"id": "x1_unexpected", "kind": "cell", "status": "LOCATED", "page": 1, "bbox": [0.70, 0.20, 0.90, 0.25], "text": "99", "row_header": "Footnote", "column_header": "Mean yield", "unit": "g"}
+  ]
+}

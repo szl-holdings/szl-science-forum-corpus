@@ -13,3 +13,6 @@ authors = [{name = "SZL Holdings"}]
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["szl_forum_corpus*"]
+
+[tool.setuptools.package-data]
+"szl_forum_corpus.kernels" = ["SOURCES.json", "NOTICE"]

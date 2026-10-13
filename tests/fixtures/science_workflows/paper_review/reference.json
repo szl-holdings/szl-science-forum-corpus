@@ -1,0 +1,19 @@
+{
+  "schema": "szl.paper-rescue.gold.v1",
+  "pdf_sha256": "369689e73a41b03166e9a62dbe13d175b69221842a264a515234f25b735592e2",
+  "declared_pages": 3,
+  "annotation_basis": "SYNTHETIC_FIXTURE",
+  "reviewer_count": 0,
+  "items": [
+    {"id": "t1_correct", "kind": "cell", "status": "LOCATED", "page": 1, "bbox": [0.10, 0.20, 0.30, 0.25], "text": "12.5", "row_header": "Control", "column_header": "Mean yield", "unit": "g"},
+    {"id": "t2_wrong_value", "kind": "cell", "status": "LOCATED", "page": 1, "bbox": [0.10, 0.25, 0.30, 0.30], "text": "18.3", "row_header": "Treated", "column_header": "Mean yield", "unit": "g"},
+    {"id": "t3_wrong_unit", "kind": "cell", "status": "LOCATED", "page": 2, "bbox": [0.40, 0.10, 0.60, 0.15], "text": "4.2", "row_header": "Buffer A", "column_header": "Concentration", "unit": "µM"},
+    {"id": "t4_ambiguous_identity", "kind": "cell", "status": "LOCATED", "page": 2, "bbox": [0.40, 0.15, 0.60, 0.20], "text": "0.91", "row_header": "Sample 7b", "column_header": "Ratio", "unit": "1"},
+    {"id": "t5_noncomparable_endpoint", "kind": "cell", "status": "LOCATED", "page": 2, "bbox": [0.40, 0.20, 0.60, 0.25], "text": "28", "row_header": "Day 28", "column_header": "Survival", "unit": "%"},
+    {"id": "t6_missing", "kind": "cell", "status": "LOCATED", "page": 2, "bbox": [0.40, 0.25, 0.60, 0.30], "text": "3", "row_header": "Dropouts", "column_header": "Count", "unit": "1"},
+    {"id": "t7_abstained", "kind": "cell", "status": "LOCATED", "page": 2, "bbox": [0.40, 0.30, 0.60, 0.35], "text": "0.05", "row_header": "Threshold", "column_header": "Alpha", "unit": "1"},
+    {"id": "t8_unresolved_reference", "kind": "caption", "status": "UNRESOLVED", "reason": "reviewers could not agree which caption belongs to figure 2"},
+    {"id": "t9_wrong_locator", "kind": "cell", "status": "LOCATED", "page": 2, "bbox": [0.10, 0.20, 0.30, 0.25], "text": "7", "row_header": "Replicates", "column_header": "Count", "unit": "1"},
+    {"id": "c1_caption", "kind": "caption", "status": "LOCATED", "page": 1, "bbox": [0.10, 0.70, 0.90, 0.75], "text": "Table 1. Mean yield by arm."}
+  ]
+}

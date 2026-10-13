@@ -1,0 +1,7 @@
+The three Python files in this directory are byte-identical copies of SZL Skills kernels at
+szl-holdings/szl-skills commit 3e1f02c137c1e8da4ab0f78196bfa55dc7263984. They are renamed only
+so that Python can import them; their bytes are pinned by SHA-256 in SOURCES.json.
+
+SZL Skills
+Copyright (c) 2026 SZL Holdings. Licensed under the Apache License, Version 2.0.
+See the LICENSE file at the root of this repository (also Apache-2.0).
