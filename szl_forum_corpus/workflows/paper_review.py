@@ -377,9 +377,26 @@ def _refuse_if_running_elsewhere(tx: Transaction, context: Context, case_id: str
                                 fields=["session_id", f"running_case:{other['case_id']}"])
 
 
+def _interval_epochs(session: dict) -> list[list[str | None]]:
+    """The runtime epoch that opened and closed each interval; None where none was recorded.
+
+    Sessions recorded before epochs existed have no runtime evidence for any interval, so they
+    are given [None, None] entries the first time they change.
+    """
+
+    return session.setdefault("interval_epochs",
+                              [[None, None] for _interval in session["intervals"]])
+
+
 def record_effort(store: Store, context: Context, request_id: str, case_id: str,
                   expected_revision: int, event: dict) -> dict:
-    """Start, pause, resume, stop or amend an effort session using the server clock only."""
+    """Start, pause, resume, stop or amend an effort session using the server clock only.
+
+    Every interval records the runtime epoch that opened it and the one that closed it. An
+    interval closed by a different runtime spans a restart: its closing time is kept as an
+    observation, but the session's effort stays unknown unless a reasoned amendment says
+    otherwise, because the outage was never observed as work.
+    """
 
     require(context, "effort")
     action = choice(event.get("action") if isinstance(event, dict) else None, EFFORT_ACTIONS, "action")
@@ -402,6 +419,7 @@ def record_effort(store: Store, context: Context, request_id: str, case_id: str,
             sessions[session_id] = {"actor": context.principal_id,
                                     "activity": choice(event["activity"], ACTIVITIES, "activity"),
                                     "state": "running", "intervals": [[now, None]],
+                                    "interval_epochs": [[store.epoch, None]],
                                     "amendments": [], "capture": "server_clock"}
         else:
             required = {"action", "session_id"} | ({"active_seconds", "reason"} if action == "amend"
@@ -415,6 +433,7 @@ def record_effort(store: Store, context: Context, request_id: str, case_id: str,
                 fail("FORBIDDEN", "only the session's reviewer can change it", "session_id")
             if action in ("pause", "stop") and session["state"] == "running":
                 session["intervals"][-1][1] = now
+                _interval_epochs(session)[-1][1] = store.epoch
             elif action in ("pause", "stop") and not (action == "stop" and session["state"] == "paused"):
                 fail("INVALID_INPUT", f"cannot {action} a {session['state']} session", "action")
             if action == "pause":
@@ -430,6 +449,7 @@ def record_effort(store: Store, context: Context, request_id: str, case_id: str,
                                           "reviewer's time is never counted twice")
                 _refuse_if_running_elsewhere(tx, context, case_id)
                 session["state"] = "running"
+                _interval_epochs(session).append([store.epoch, None])
                 session["intervals"].append([now, None])
             elif action == "amend":
                 seconds = event["active_seconds"]
@@ -439,7 +459,8 @@ def record_effort(store: Store, context: Context, request_id: str, case_id: str,
                 session["amendments"].append({"active_seconds": seconds, "at": now,
                                               "reason": bounded_text(event["reason"], "reason")})
         return ([Write(case_id, KIND, f"effort_{action}", projection,
-                       dict(event, actor=context.principal_id))], {"action": action})
+                       dict(event, actor=context.principal_id, runtime_epoch=store.epoch))],
+                {"action": action})
 
     return store.command(context, request_id, f"paper.effort.{action}",
                          {"case_id": case_id, "event": event}, {case_id: expected_revision}, apply)
@@ -451,7 +472,12 @@ def _seconds(start: str, end: str) -> int:
 
 
 def session_effort(session: dict) -> dict:
-    """Active seconds for one session. Open or interrupted sessions are unknown, never zero."""
+    """Active seconds for one session. Open or interrupted sessions are unknown, never zero.
+
+    Server-clock time counts only when every interval was opened and closed by the same runtime.
+    An interval that spans a restart, or one recorded before runtime epochs existed, makes the
+    session unknown until a reasoned amendment gives a value.
+    """
 
     if session["amendments"]:
         latest = session["amendments"][-1]
@@ -459,6 +485,11 @@ def session_effort(session: dict) -> dict:
                 "basis": "manual_amendment" if latest["active_seconds"] is not None else "unknown"}
     if session["state"] != "stopped":
         return {"active_seconds": None, "basis": "interrupted_or_open"}
+    epochs = session.get("interval_epochs") or [[None, None] for _interval in session["intervals"]]
+    if any(closed is not None and opened != closed for opened, closed in epochs):
+        return {"active_seconds": None, "basis": "interrupted_by_restart"}
+    if len(epochs) != len(session["intervals"]) or any(opened is None for opened, _ in epochs):
+        return {"active_seconds": None, "basis": "recorded_without_runtime_epoch"}
     return {"active_seconds": sum(_seconds(start, end) for start, end in session["intervals"]),
             "basis": "server_clock"}
 
@@ -527,7 +558,8 @@ def summary(case: dict) -> dict:
         "limitations": [
             "Corrections never change the initial comparison; the initial discrepancy count stays.",
             "Durations come from the server clock or a reasoned amendment; open, paused or "
-            "interrupted sessions are unknown, not zero. Wait time is not staff effort.",
+            "interrupted sessions are unknown, not zero. An interval that spans a runtime restart "
+            "stays unknown unless amended. Wait time is not staff effort.",
             "Software test timings and synthetic fixtures are not a human time study.",
         ],
     }

@@ -65,9 +65,16 @@ located reference, a bound locator on an accessible source, no unresolved adjudi
 a matching value or an accepted correction.
 
 Effort sessions use the server clock only. Open, paused or interrupted sessions are unknown, not
-zero; one reviewer cannot run two sessions at once in any case of the tenant (checked inside
-the store's single-writer transaction, so competing starts record exactly one); amendments
-append with a reason; `wait` is not staff effort. Rates stay `UNAVAILABLE` without a predeclared scoring policy.
+zero. One reviewer cannot run two sessions at once in any case of the tenant: the check runs
+inside the store's single-writer transaction, so competing starts record exactly one. Every
+interval records the runtime epoch that opened and closed it (a `Store` instance is one runtime;
+a restart is a new epoch). An interval closed by a different runtime spans a restart: its closing
+time is kept, but the session reads `interrupted_by_restart` (unknown) instead of counting the
+outage as work, whether the restart is followed by a pause or a stop. Sessions recorded before
+epochs existed read `recorded_without_runtime_epoch` (unknown) for the same reason. A reasoned
+amendment can still set a value. Epochs live in projections and event payloads, so the SQL
+schema and existing databases are unchanged. Amendments append with a reason; `wait` is not
+staff effort. Rates stay `UNAVAILABLE` without a predeclared scoring policy.
 
 ## Build 2: evidence-change recheck queue
 

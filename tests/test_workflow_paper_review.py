@@ -10,7 +10,7 @@ from unittest import mock
 
 from szl_forum_corpus.workflows import paper_review
 from szl_forum_corpus.workflows.contracts import WorkflowError
-from szl_forum_corpus.workflows.store import Context, Store
+from szl_forum_corpus.workflows.store import Context, Store, Write
 
 FIXTURES = Path(paper_review.__file__).resolve().parent / "fixtures" / "paper_review"
 OPERATOR = Context("operator-1", "tenant-a", "operator")
@@ -23,6 +23,23 @@ SAME_NAME_OTHER_TENANT = Context("reviewer-1", "tenant-b", "reviewer")
 
 def text(name):
     return (FIXTURES / name).read_text(encoding="utf-8")
+
+
+EPOCH_1, EPOCH_2 = "1" * 32, "2" * 32
+
+
+class Clock:
+    """A controlled server clock: each call returns the next scripted UTC time."""
+
+    def __init__(self, *times):
+        self.times = list(times)
+
+    def __call__(self):
+        return self.times.pop(0)
+
+
+def at(clock_time):
+    return f"2026-10-13T{clock_time}.000000Z"
 
 
 def case_payload(case_id="case-1", records=None, reference=None, access="available", **changes):
@@ -436,6 +453,156 @@ class PaperReviewTests(unittest.TestCase):
         self.effort(start_b, case_id="case-b", request=refused_request)
         self.unchanged("case-a", lambda: self.effort({"action": "resume", "session_id": "a1"},
                                                      case_id="case-a"))
+
+    # ---- restarts never become measured effort ----------------------------------------------
+
+    def timed(self, store, clock_time, event, case_id="case-1"):
+        revision = store.get(REVIEWER, paper_review.KIND, case_id)["revision"]
+        with mock.patch.object(paper_review, "utc_now", Clock(at(clock_time))):
+            return paper_review.record_effort(store, REVIEWER, self.rid(), case_id, revision, event)
+
+    def session(self, session_id="s1"):
+        return self.case()["effort"]["sessions"][session_id]
+
+    def runtime(self, epoch):
+        return Store(self.path, epoch=epoch)
+
+    def test_uninterrupted_pause_resume_stop_counts_only_observed_intervals(self):
+        self.registered()
+        store = self.runtime(EPOCH_1)
+        self.timed(store, "10:00:00", {"action": "start", "session_id": "s1", "activity": "review"})
+        self.timed(store, "10:01:00", {"action": "pause", "session_id": "s1"})
+        self.timed(store, "10:01:40", {"action": "resume", "session_id": "s1"})
+        self.timed(store, "10:02:10", {"action": "stop", "session_id": "s1"})
+        session = self.session()
+        self.assertEqual(session["interval_epochs"], [[EPOCH_1, EPOCH_1], [EPOCH_1, EPOCH_1]])
+        self.assertEqual(paper_review.session_effort(session),
+                         {"active_seconds": 90, "basis": "server_clock"})
+        self.assertEqual(paper_review.summary(self.case())["staff_effort"]["known_seconds"], 90)
+
+    def test_stop_after_a_restart_keeps_effort_unknown(self):
+        self.registered()
+        self.timed(self.runtime(EPOCH_1), "09:00:00",
+                   {"action": "start", "session_id": "s1", "activity": "review"})
+        restarted = self.runtime(EPOCH_2)  # same database, new runtime, eight hours later
+        self.timed(restarted, "17:00:00", {"action": "stop", "session_id": "s1"})
+        session = self.session()
+        self.assertEqual(session["state"], "stopped")
+        # The closing time is kept as an observation; it is not counted as work.
+        self.assertEqual(session["intervals"], [[at("09:00:00"), at("17:00:00")]])
+        self.assertEqual(session["interval_epochs"], [[EPOCH_1, EPOCH_2]])
+        self.assertEqual(paper_review.session_effort(session),
+                         {"active_seconds": None, "basis": "interrupted_by_restart"})
+        summary = paper_review.summary(self.case())
+        self.assertEqual((summary["staff_effort"]["known_seconds"],
+                          summary["staff_effort"]["unknown_sessions"]), (0, 1))
+        events = [entry for entry in self.store.history(REVIEWER, "case-1")
+                  if entry["event_type"].startswith("effort_")]
+        self.assertEqual([(entry["event_type"], entry["payload"]["runtime_epoch"]) for entry in events],
+                         [("effort_start", EPOCH_1), ("effort_stop", EPOCH_2)])
+
+    def test_pause_after_a_restart_then_stop_stays_unknown_even_after_new_observed_work(self):
+        self.registered()
+        self.timed(self.runtime(EPOCH_1), "09:00:00",
+                   {"action": "start", "session_id": "s1", "activity": "repair"})
+        restarted = self.runtime(EPOCH_2)
+        self.timed(restarted, "12:00:00", {"action": "pause", "session_id": "s1"})
+        self.assertEqual(paper_review.session_effort(self.session())["basis"], "interrupted_or_open")
+        self.timed(restarted, "12:10:00", {"action": "stop", "session_id": "s1"})
+        self.assertEqual(paper_review.session_effort(self.session()),
+                         {"active_seconds": None, "basis": "interrupted_by_restart"})
+        # Resuming in the new runtime adds an observed interval, but the outage stays unknown.
+        self.timed(restarted, "13:00:00", {"action": "start", "session_id": "s2",
+                                          "activity": "repair"})
+        self.timed(restarted, "13:05:00", {"action": "pause", "session_id": "s2"})
+        self.timed(restarted, "13:06:00", {"action": "resume", "session_id": "s2"})
+        self.timed(restarted, "13:07:00", {"action": "stop", "session_id": "s2"})
+        self.assertEqual(paper_review.session_effort(self.session("s2")),
+                         {"active_seconds": 360, "basis": "server_clock"})
+        self.assertEqual(paper_review.summary(self.case())["effort"]["repair"],
+                         {"known_seconds": 360, "unknown_sessions": 1, "sessions": 2,
+                          "by_actor": {"reviewer-1": {"known_seconds": 360, "unknown_sessions": 1}}})
+
+    def test_paused_before_restart_then_resumed_counts_only_if_each_interval_is_observed(self):
+        self.registered()
+        first = self.runtime(EPOCH_1)
+        self.timed(first, "09:00:00", {"action": "start", "session_id": "s1", "activity": "review"})
+        self.timed(first, "09:10:00", {"action": "pause", "session_id": "s1"})
+        restarted = self.runtime(EPOCH_2)
+        self.timed(restarted, "15:00:00", {"action": "resume", "session_id": "s1"})
+        self.timed(restarted, "15:05:00", {"action": "stop", "session_id": "s1"})
+        self.assertEqual(self.session()["interval_epochs"], [[EPOCH_1, EPOCH_1], [EPOCH_2, EPOCH_2]])
+        self.assertEqual(paper_review.session_effort(self.session()),
+                         {"active_seconds": 900, "basis": "server_clock"})
+
+    def test_a_reasoned_amendment_can_set_an_interrupted_session(self):
+        self.registered()
+        self.timed(self.runtime(EPOCH_1), "09:00:00",
+                   {"action": "start", "session_id": "s1", "activity": "review"})
+        restarted = self.runtime(EPOCH_2)
+        self.timed(restarted, "17:00:00", {"action": "stop", "session_id": "s1"})
+        self.timed(restarted, "17:01:00", {"action": "amend", "session_id": "s1",
+                                          "active_seconds": 1500,
+                                          "reason": "reviewer log: 25 minutes before the outage"})
+        self.assertEqual(paper_review.session_effort(self.session()),
+                         {"active_seconds": 1500, "basis": "manual_amendment"})
+        self.timed(restarted, "17:02:00", {"action": "amend", "session_id": "s1",
+                                          "active_seconds": None, "reason": "log disputed"})
+        self.assertEqual(paper_review.session_effort(self.session()),
+                         {"active_seconds": None, "basis": "unknown"})
+        session = self.session()
+        self.assertEqual([entry["active_seconds"] for entry in session["amendments"]], [1500, None])
+        self.assertEqual(session["intervals"], [[at("09:00:00"), at("17:00:00")]])
+
+    def legacy_sessions(self, sessions):
+        """Write sessions exactly as the merged #31 adapter did: no runtime epochs anywhere."""
+
+        def apply(tx):
+            case = tx.get(paper_review.KIND, "case-1")
+            case.pop("revision")
+            case["effort"]["sessions"].update(sessions)
+            return [Write("case-1", paper_review.KIND, "effort_start", case,
+                          {"action": "start", "actor": "reviewer-1"})], {"action": "start"}
+
+        revision = self.case()["revision"]
+        self.store.command(REVIEWER, self.rid(), "paper.effort.start", {"legacy": True},
+                           {"case-1": revision}, apply)
+
+    def test_sessions_recorded_before_epochs_never_become_measured_effort(self):
+        self.registered()
+        legacy = {"actor": "reviewer-1", "activity": "review", "amendments": [],
+                  "capture": "server_clock"}
+        self.legacy_sessions({
+            "running": dict(legacy, state="running", intervals=[[at("08:00:00"), None]]),
+            "paused": dict(legacy, state="paused",
+                           intervals=[[at("08:00:00"), at("08:30:00")]]),
+            "stopped": dict(legacy, state="stopped",
+                            intervals=[[at("07:00:00"), at("07:20:00")]]),
+        })
+        self.assertNotIn("interval_epochs", self.session("running"))
+        upgraded = self.runtime(EPOCH_2)
+        self.timed(upgraded, "18:00:00", {"action": "stop", "session_id": "running"})
+        self.assertEqual(self.session("running")["interval_epochs"], [[None, EPOCH_2]])
+        self.assertEqual(paper_review.session_effort(self.session("running")),
+                         {"active_seconds": None, "basis": "interrupted_by_restart"})
+        self.timed(upgraded, "18:01:00", {"action": "resume", "session_id": "paused"})
+        self.timed(upgraded, "18:02:00", {"action": "stop", "session_id": "paused"})
+        self.assertEqual(self.session("paused")["interval_epochs"], [[None, None],
+                                                                     [EPOCH_2, EPOCH_2]])
+        self.assertEqual(paper_review.session_effort(self.session("paused")),
+                         {"active_seconds": None, "basis": "recorded_without_runtime_epoch"})
+        self.assertEqual(paper_review.session_effort(self.session("stopped")),
+                         {"active_seconds": None, "basis": "recorded_without_runtime_epoch"})
+        summary = paper_review.summary(self.case())
+        self.assertEqual(summary["effort"]["review"]["known_seconds"], 0)
+        self.assertEqual(summary["effort"]["review"]["unknown_sessions"], 3)
+
+    def test_runtime_epochs_are_fresh_and_strict(self):
+        self.assertNotEqual(Store(self.path).epoch, Store(self.path).epoch)
+        for bad in ("", "1" * 31, "G" * 32, 7):
+            with self.subTest(bad=bad):
+                with self.assertRaises(ValueError):
+                    Store(self.path, epoch=bad)
 
     def test_amendments_append_with_reason_and_null_stays_unknown(self):
         self.registered()

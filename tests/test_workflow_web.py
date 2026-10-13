@@ -235,6 +235,14 @@ class WebTests(unittest.TestCase):
         self.assertIn("unknown (interrupted_or_open)", text)
         self.assertEqual(self.get_json(f"{API}/paper-cases/demo-paper/summary")
                          ["staff_effort"]["unknown_sessions"], 1)
+        # Stopping in the restarted runtime must not turn the outage into measured effort.
+        status, _, _ = self.form(f"{BASE}/paper-review/demo-paper/effort-events",
+                                 {"action": "stop", "session_id": "web-s1",
+                                  "expected_revision": str(self.case_revision())})
+        self.assertEqual(status, 303)
+        self.assertIn("unknown (interrupted_by_restart)", self.page(f"{BASE}/paper-review/demo-paper"))
+        summary = self.get_json(f"{API}/paper-cases/demo-paper/summary")["staff_effort"]
+        self.assertEqual((summary["known_seconds"], summary["unknown_sessions"]), (0, 1))
 
     def test_stale_form_keeps_unsaved_values_and_explains(self):
         self.load("paper")
