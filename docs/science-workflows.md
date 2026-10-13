@@ -97,7 +97,8 @@ creates no task still warns, and an earlier incomplete change set keeps warning 
 complete ones, because comparing other snapshots does not rediscover what it could have missed
 (`coverage.policy` = `every_recorded_change_set`; `coverage.incomplete_change_sets` names them).
 A resolution needs a human-specified predicate, binds the current change set and predicate
-revision, and means only that the predicate was judged satisfied for those inputs. Removed required claims can never be
+revision (a strict positive integer: JSON `true`, `1.0`, strings and null are refused before
+anything is written), and means only that the predicate was judged satisfied for those inputs. Removed required claims can never be
 confirmed satisfied. A new change set supersedes an old resolution rather than inheriting it.
 
 ## Build 3: canonical figure package checker

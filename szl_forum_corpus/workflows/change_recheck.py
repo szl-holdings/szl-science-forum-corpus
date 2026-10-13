@@ -434,6 +434,13 @@ def record_task_event(store: Store, context: Context, request_id: str, task_id: 
         "resolve": {"evidence", "change_set_id", "predicate_revision"}, "reopen": {"reason"},
     }[kind]
     exact_fields(event, fields | {"type"})
+    if kind == "resolve":
+        # Checked before anything is read or written: JSON true == 1 and 1.0 == 1 in Python, so
+        # only a real positive integer may name the predicate revision that was evaluated.
+        revision = event["predicate_revision"]
+        if type(revision) is not int or revision < 1:
+            fail("INVALID_INPUT", "predicate_revision must be a positive integer",
+                 "predicate_revision")
 
     def apply(tx: Transaction):
         task = tx.get(TASK, task_id)

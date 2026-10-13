@@ -251,6 +251,37 @@ class ChangeRecheckTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, "STALE_REVISION")
         self.assertEqual(self.task("cs1", "c1")["execution"], "in_review")
 
+    def test_predicate_revision_must_be_a_strict_positive_integer(self):
+        self.fixtures()
+        self.event("cs1", "c1", {"type": "start_review"})
+        self.event("cs1", "c1", {"type": "set_predicate", "text": "refit matches within CI"})
+        task_id = recheck.task_id_for("cs1", "c1")
+        before = (self.task("cs1", "c1"), self.store.history(REVIEWER, task_id))
+        self.assertEqual(before[0]["predicate"]["revision"], 1)
+        for bad in (True, False, 1.0, 2.0, "1", None, 0, -1):
+            with self.subTest(bad=bad):
+                request = self.rid()
+                with self.assertRaises(WorkflowError) as caught:
+                    recheck.record_task_event(self.store, REVIEWER, request, task_id,
+                                              before[0]["revision"],
+                                              {"type": "resolve", "evidence": "x",
+                                               "change_set_id": "cs1", "predicate_revision": bad})
+                self.assertEqual((caught.exception.code, caught.exception.fields),
+                                 ("INVALID_INPUT", ["predicate_revision"]))
+                self.assertIsNone(self.store.recover(REVIEWER, request))
+                self.assertEqual((self.task("cs1", "c1"), self.store.history(REVIEWER, task_id)),
+                                 before)
+        self.event("cs1", "c1", {"type": "set_predicate", "text": "refit and d1 re-pinned"})
+        with self.assertRaises(WorkflowError) as caught:
+            self.event("cs1", "c1", {"type": "resolve", "evidence": "x", "change_set_id": "cs1",
+                                     "predicate_revision": 1})
+        self.assertEqual(caught.exception.code, "STALE_REVISION")
+        self.event("cs1", "c1", {"type": "resolve", "evidence": "x", "change_set_id": "cs1",
+                                 "predicate_revision": 2})
+        task = self.task("cs1", "c1")
+        self.assertEqual((task["execution"], task["resolution"]["predicate"]["revision"]),
+                         ("resolved", 2))
+
     def test_resolution_requires_review_and_a_predicate(self):
         self.fixtures()
         with self.assertRaises(WorkflowError):

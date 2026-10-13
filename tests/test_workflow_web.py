@@ -306,6 +306,38 @@ class WebTests(unittest.TestCase):
         self.assertIn("Superseded by", old)
         self.assertEqual(self.get_json(f"{API}/change-sets/web-cs2")["tasks"].__len__(), 5)
 
+    def test_json_resolution_needs_an_integer_predicate_revision(self):
+        self.load("recheck")
+        task_id = change_recheck.task_id_for("demo-cs1", "c2")
+        path = f"{API}/recheck-tasks/{task_id}/events"
+
+        def send(event, request=None):
+            revision = next(task for task in self.get_json(f"{API}/recheck-tasks")["tasks"]
+                            if task["task_id"] == task_id)["revision"]
+            return self.api(path, {"request_id": request or secrets.token_hex(16),
+                                   "expected_revision": revision, "event": event})
+
+        self.assertEqual(send({"type": "start_review"})[0], 200)
+        self.assertEqual(send({"type": "set_predicate", "text": "assay rerun agrees"})[0], 200)
+        history = self.store.history(self.server.app.context, task_id)
+        resolve = {"type": "resolve", "evidence": "rerun log", "change_set_id": "demo-cs1"}
+        for raw in (b"true", b"1.0", b'"1"', b"null", b"0", b"-1"):
+            with self.subTest(predicate_revision=raw):
+                revision = self.store.get(self.server.app.context, change_recheck.TASK,
+                                          task_id)["revision"]
+                body = (b'{"request_id": "' + secrets.token_hex(16).encode() + b'", '
+                        b'"expected_revision": ' + str(revision).encode() + b', "event": '
+                        + json.dumps(resolve).encode()[:-1] + b', "predicate_revision": ' + raw
+                        + b"}}")
+                status, payload = self.api(path, None, raw=body)
+                self.assertEqual((status, payload["error"]["code"], payload["error"]["fields"]),
+                                 (422, "INVALID_INPUT", ["predicate_revision"]))
+                self.assertEqual(self.store.history(self.server.app.context, task_id), history)
+        self.assertEqual(send(dict(resolve, predicate_revision=2))[1]["error"]["code"],
+                         "STALE_REVISION")
+        status, payload = send(dict(resolve, predicate_revision=1))
+        self.assertEqual((status, payload["outcome"]["execution"]), (200, "resolved"))
+
     def test_incomplete_coverage_warns_on_an_empty_queue_over_http(self):
         context = self.server.app.context
         quiet = json.dumps({"schema": "szl.research-anatomy.v1", "nodes": [
