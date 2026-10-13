@@ -3,29 +3,49 @@
 import itertools
 import json
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from szl_forum_corpus.workflows import paper_review
 from szl_forum_corpus.workflows.contracts import WorkflowError
-from szl_forum_corpus.workflows.store import Context, Store
+from szl_forum_corpus.workflows.store import Context, Store, Write
 
-FIXTURES = Path(__file__).resolve().parent / "fixtures" / "science_workflows" / "paper_review"
+FIXTURES = Path(paper_review.__file__).resolve().parent / "fixtures" / "paper_review"
 OPERATOR = Context("operator-1", "tenant-a", "operator")
 REVIEWER = Context("reviewer-1", "tenant-a", "reviewer")
 SECOND = Context("reviewer-2", "tenant-a", "reviewer")
 VIEWER = Context("viewer-1", "tenant-a", "viewer")
+OTHER_OPERATOR = Context("operator-9", "tenant-b", "operator")
+SAME_NAME_OTHER_TENANT = Context("reviewer-1", "tenant-b", "reviewer")
 
 
 def text(name):
     return (FIXTURES / name).read_text(encoding="utf-8")
 
 
+EPOCH_1, EPOCH_2 = "1" * 32, "2" * 32
+
+
+class Clock:
+    """A controlled server clock: each call returns the next scripted UTC time."""
+
+    def __init__(self, *times):
+        self.times = list(times)
+
+    def __call__(self):
+        return self.times.pop(0)
+
+
+def at(clock_time):
+    return f"2026-10-13T{clock_time}.000000Z"
+
+
 def case_payload(case_id="case-1", records=None, reference=None, access="available", **changes):
     payload = {
         "case_id": case_id, "protocol_revision": "synthetic-protocol.v1",
-        "evidence_kind": "synthetic", "provenance": "tests/fixtures/science_workflows/PROVENANCE.md",
+        "evidence_kind": "synthetic", "provenance": "szl_forum_corpus/workflows/fixtures/PROVENANCE.md",
         "records_document": records if records is not None else text("records.json"),
         "reference_document": reference if reference is not None else text("reference.json"),
         "reference_independent": False, "reference_complete": True, "source_access": access,
@@ -60,9 +80,10 @@ class PaperReviewTests(unittest.TestCase):
         revision = self.case(case_id)["revision"]
         return paper_review.record_review_event(self.store, context, self.rid(), case_id, revision, event)
 
-    def effort(self, event, context=REVIEWER, case_id="case-1"):
-        revision = self.case(case_id)["revision"]
-        return paper_review.record_effort(self.store, context, self.rid(), case_id, revision, event)
+    def effort(self, event, context=REVIEWER, case_id="case-1", request=None):
+        revision = self.case(case_id, context)["revision"]
+        return paper_review.record_effort(self.store, context, request or self.rid(), case_id,
+                                          revision, event)
 
     def correct(self, item_id, correction_id, changes, decision="accept"):
         self.event({"type": "propose_correction", "item_id": item_id, "correction_id": correction_id,
@@ -322,6 +343,266 @@ class PaperReviewTests(unittest.TestCase):
         with self.assertRaises(WorkflowError) as caught:
             self.effort({"action": "stop", "session_id": "s1"}, context=SECOND)
         self.assertEqual(caught.exception.code, "FORBIDDEN")
+
+    # ---- one running session per reviewer across cases -------------------------------------
+
+    def unchanged(self, case_id, test):
+        """Run ``test`` (which must be refused) and require that it wrote nothing to the case."""
+
+        before = (self.case(case_id), self.store.history(REVIEWER, case_id))
+        with self.assertRaises(WorkflowError) as caught:
+            test()
+        self.assertEqual((self.case(case_id), self.store.history(REVIEWER, case_id)), before)
+        return caught.exception
+
+    def test_running_session_in_one_case_blocks_start_and_resume_in_another(self):
+        self.registered("case-a")
+        self.registered("case-b")
+        self.effort({"action": "start", "session_id": "b1", "activity": "review"}, case_id="case-b")
+        self.effort({"action": "pause", "session_id": "b1"}, case_id="case-b")
+        self.effort({"action": "start", "session_id": "a1", "activity": "review"}, case_id="case-a")
+        refused = self.unchanged("case-b", lambda: self.effort(
+            {"action": "start", "session_id": "b2", "activity": "repair"}, case_id="case-b"))
+        self.assertEqual((refused.code, refused.fields),
+                         ("INVALID_INPUT", ["session_id", "running_case:case-a"]))
+        refused = self.unchanged("case-b", lambda: self.effort(
+            {"action": "resume", "session_id": "b1"}, case_id="case-b"))
+        self.assertEqual(refused.code, "INVALID_INPUT")
+        # Pausing releases the reviewer: resume in case B now succeeds.
+        self.effort({"action": "pause", "session_id": "a1"}, case_id="case-a")
+        self.effort({"action": "resume", "session_id": "b1"}, case_id="case-b")
+        self.unchanged("case-a", lambda: self.effort(
+            {"action": "resume", "session_id": "a1"}, case_id="case-a"))
+        # Stopping releases too.
+        self.effort({"action": "stop", "session_id": "b1"}, case_id="case-b")
+        self.effort({"action": "resume", "session_id": "a1"}, case_id="case-a")
+        running = [(case_id, session_id) for case_id in ("case-a", "case-b")
+                   for session_id, session in self.case(case_id)["effort"]["sessions"].items()
+                   if session["state"] == "running"]
+        self.assertEqual(running, [("case-a", "a1")])
+
+    def test_other_reviewers_and_tenants_are_not_blocked(self):
+        self.registered("case-a")
+        self.registered("case-b")
+        paper_review.register_case(self.store, OTHER_OPERATOR, self.rid(), case_payload("case-a"))
+        self.effort({"action": "start", "session_id": "a1", "activity": "review"}, case_id="case-a")
+        self.effort({"action": "start", "session_id": "b1", "activity": "review"}, context=SECOND,
+                    case_id="case-b")
+        # The same principal name in another tenant is a different reviewer scope.
+        self.effort({"action": "start", "session_id": "t1", "activity": "review"},
+                    context=SAME_NAME_OTHER_TENANT, case_id="case-a")
+        self.assertEqual(self.case("case-a", SAME_NAME_OTHER_TENANT)["effort"]["sessions"]["t1"]
+                         ["state"], "running")
+        self.assertEqual(self.case("case-b")["effort"]["sessions"]["b1"]["state"], "running")
+        self.assertEqual(self.case("case-a")["effort"]["sessions"]["a1"]["state"], "running")
+
+    def test_competing_starts_for_one_reviewer_record_exactly_one(self):
+        self.registered("case-a")
+        self.registered("case-b")
+        barrier, outcomes = threading.Barrier(2), {}
+        revisions = {case_id: self.case(case_id)["revision"] for case_id in ("case-a", "case-b")}
+        requests = {"case-a": "a" * 32, "case-b": "b" * 32}
+
+        def start(case_id):
+            store = Store(self.path)  # each competitor has its own runtime and connections
+            barrier.wait()
+            try:
+                outcomes[case_id] = paper_review.record_effort(
+                    store, REVIEWER, requests[case_id], case_id, revisions[case_id],
+                    {"action": "start", "session_id": f"s-{case_id}", "activity": "review"})
+            except WorkflowError as error:
+                outcomes[case_id] = error.code
+
+        threads = [threading.Thread(target=start, args=(case_id,)) for case_id in requests]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=60)
+        self.assertEqual(sorted(type(value).__name__ for value in outcomes.values()),
+                         ["dict", "str"])
+        loser = next(case_id for case_id, value in outcomes.items() if value == "INVALID_INPUT")
+        winner = next(case_id for case_id in requests if case_id != loser)
+        self.assertEqual(self.case(loser)["revision"], revisions[loser])
+        self.assertEqual(self.case(loser)["effort"]["sessions"], {})
+        self.assertIsNone(self.store.recover(REVIEWER, requests[loser]))
+        self.assertEqual(self.case(winner)["effort"]["sessions"][f"s-{winner}"]["state"],
+                         "running")
+
+    def test_request_id_replay_cannot_bypass_the_reviewer_guard(self):
+        self.registered("case-a")
+        self.registered("case-b")
+        start_a = {"action": "start", "session_id": "a1", "activity": "review"}
+        start_b = {"action": "start", "session_id": "b1", "activity": "review"}
+        first = self.effort(start_a, case_id="case-a", request="1" * 32)
+        refused_request = "2" * 32
+        self.unchanged("case-b", lambda: self.effort(start_b, case_id="case-b",
+                                                     request=refused_request))
+        self.effort({"action": "pause", "session_id": "a1"}, case_id="case-a")
+        # Replaying the original start returns its recorded result; it does not restart a1.
+        revision = self.case("case-a")["revision"]
+        self.assertEqual(paper_review.record_effort(self.store, REVIEWER, "1" * 32, "case-a", 2,
+                                                    start_a), first)
+        self.assertEqual(self.case("case-a")["revision"], revision)
+        self.assertEqual(self.case("case-a")["effort"]["sessions"]["a1"]["state"], "paused")
+        # A request ID cannot be reused for a different action.
+        with self.assertRaises(WorkflowError) as caught:
+            self.effort(start_b, case_id="case-b", request="1" * 32)
+        self.assertEqual(caught.exception.code, "REQUEST_ID_CONFLICT")
+        # A refused request recorded nothing, so its ID is evaluated afresh once a1 is paused.
+        self.assertIsNone(self.store.recover(REVIEWER, refused_request))
+        self.effort(start_b, case_id="case-b", request=refused_request)
+        self.unchanged("case-a", lambda: self.effort({"action": "resume", "session_id": "a1"},
+                                                     case_id="case-a"))
+
+    # ---- restarts never become measured effort ----------------------------------------------
+
+    def timed(self, store, clock_time, event, case_id="case-1"):
+        revision = store.get(REVIEWER, paper_review.KIND, case_id)["revision"]
+        with mock.patch.object(paper_review, "utc_now", Clock(at(clock_time))):
+            return paper_review.record_effort(store, REVIEWER, self.rid(), case_id, revision, event)
+
+    def session(self, session_id="s1"):
+        return self.case()["effort"]["sessions"][session_id]
+
+    def runtime(self, epoch):
+        return Store(self.path, epoch=epoch)
+
+    def test_uninterrupted_pause_resume_stop_counts_only_observed_intervals(self):
+        self.registered()
+        store = self.runtime(EPOCH_1)
+        self.timed(store, "10:00:00", {"action": "start", "session_id": "s1", "activity": "review"})
+        self.timed(store, "10:01:00", {"action": "pause", "session_id": "s1"})
+        self.timed(store, "10:01:40", {"action": "resume", "session_id": "s1"})
+        self.timed(store, "10:02:10", {"action": "stop", "session_id": "s1"})
+        session = self.session()
+        self.assertEqual(session["interval_epochs"], [[EPOCH_1, EPOCH_1], [EPOCH_1, EPOCH_1]])
+        self.assertEqual(paper_review.session_effort(session),
+                         {"active_seconds": 90, "basis": "server_clock"})
+        self.assertEqual(paper_review.summary(self.case())["staff_effort"]["known_seconds"], 90)
+
+    def test_stop_after_a_restart_keeps_effort_unknown(self):
+        self.registered()
+        self.timed(self.runtime(EPOCH_1), "09:00:00",
+                   {"action": "start", "session_id": "s1", "activity": "review"})
+        restarted = self.runtime(EPOCH_2)  # same database, new runtime, eight hours later
+        self.timed(restarted, "17:00:00", {"action": "stop", "session_id": "s1"})
+        session = self.session()
+        self.assertEqual(session["state"], "stopped")
+        # The closing time is kept as an observation; it is not counted as work.
+        self.assertEqual(session["intervals"], [[at("09:00:00"), at("17:00:00")]])
+        self.assertEqual(session["interval_epochs"], [[EPOCH_1, EPOCH_2]])
+        self.assertEqual(paper_review.session_effort(session),
+                         {"active_seconds": None, "basis": "interrupted_by_restart"})
+        summary = paper_review.summary(self.case())
+        self.assertEqual((summary["staff_effort"]["known_seconds"],
+                          summary["staff_effort"]["unknown_sessions"]), (0, 1))
+        events = [entry for entry in self.store.history(REVIEWER, "case-1")
+                  if entry["event_type"].startswith("effort_")]
+        self.assertEqual([(entry["event_type"], entry["payload"]["runtime_epoch"]) for entry in events],
+                         [("effort_start", EPOCH_1), ("effort_stop", EPOCH_2)])
+
+    def test_pause_after_a_restart_then_stop_stays_unknown_even_after_new_observed_work(self):
+        self.registered()
+        self.timed(self.runtime(EPOCH_1), "09:00:00",
+                   {"action": "start", "session_id": "s1", "activity": "repair"})
+        restarted = self.runtime(EPOCH_2)
+        self.timed(restarted, "12:00:00", {"action": "pause", "session_id": "s1"})
+        self.assertEqual(paper_review.session_effort(self.session())["basis"], "interrupted_or_open")
+        self.timed(restarted, "12:10:00", {"action": "stop", "session_id": "s1"})
+        self.assertEqual(paper_review.session_effort(self.session()),
+                         {"active_seconds": None, "basis": "interrupted_by_restart"})
+        # Resuming in the new runtime adds an observed interval, but the outage stays unknown.
+        self.timed(restarted, "13:00:00", {"action": "start", "session_id": "s2",
+                                          "activity": "repair"})
+        self.timed(restarted, "13:05:00", {"action": "pause", "session_id": "s2"})
+        self.timed(restarted, "13:06:00", {"action": "resume", "session_id": "s2"})
+        self.timed(restarted, "13:07:00", {"action": "stop", "session_id": "s2"})
+        self.assertEqual(paper_review.session_effort(self.session("s2")),
+                         {"active_seconds": 360, "basis": "server_clock"})
+        self.assertEqual(paper_review.summary(self.case())["effort"]["repair"],
+                         {"known_seconds": 360, "unknown_sessions": 1, "sessions": 2,
+                          "by_actor": {"reviewer-1": {"known_seconds": 360, "unknown_sessions": 1}}})
+
+    def test_paused_before_restart_then_resumed_counts_only_if_each_interval_is_observed(self):
+        self.registered()
+        first = self.runtime(EPOCH_1)
+        self.timed(first, "09:00:00", {"action": "start", "session_id": "s1", "activity": "review"})
+        self.timed(first, "09:10:00", {"action": "pause", "session_id": "s1"})
+        restarted = self.runtime(EPOCH_2)
+        self.timed(restarted, "15:00:00", {"action": "resume", "session_id": "s1"})
+        self.timed(restarted, "15:05:00", {"action": "stop", "session_id": "s1"})
+        self.assertEqual(self.session()["interval_epochs"], [[EPOCH_1, EPOCH_1], [EPOCH_2, EPOCH_2]])
+        self.assertEqual(paper_review.session_effort(self.session()),
+                         {"active_seconds": 900, "basis": "server_clock"})
+
+    def test_a_reasoned_amendment_can_set_an_interrupted_session(self):
+        self.registered()
+        self.timed(self.runtime(EPOCH_1), "09:00:00",
+                   {"action": "start", "session_id": "s1", "activity": "review"})
+        restarted = self.runtime(EPOCH_2)
+        self.timed(restarted, "17:00:00", {"action": "stop", "session_id": "s1"})
+        self.timed(restarted, "17:01:00", {"action": "amend", "session_id": "s1",
+                                          "active_seconds": 1500,
+                                          "reason": "reviewer log: 25 minutes before the outage"})
+        self.assertEqual(paper_review.session_effort(self.session()),
+                         {"active_seconds": 1500, "basis": "manual_amendment"})
+        self.timed(restarted, "17:02:00", {"action": "amend", "session_id": "s1",
+                                          "active_seconds": None, "reason": "log disputed"})
+        self.assertEqual(paper_review.session_effort(self.session()),
+                         {"active_seconds": None, "basis": "unknown"})
+        session = self.session()
+        self.assertEqual([entry["active_seconds"] for entry in session["amendments"]], [1500, None])
+        self.assertEqual(session["intervals"], [[at("09:00:00"), at("17:00:00")]])
+
+    def legacy_sessions(self, sessions):
+        """Write sessions exactly as the merged #31 adapter did: no runtime epochs anywhere."""
+
+        def apply(tx):
+            case = tx.get(paper_review.KIND, "case-1")
+            case.pop("revision")
+            case["effort"]["sessions"].update(sessions)
+            return [Write("case-1", paper_review.KIND, "effort_start", case,
+                          {"action": "start", "actor": "reviewer-1"})], {"action": "start"}
+
+        revision = self.case()["revision"]
+        self.store.command(REVIEWER, self.rid(), "paper.effort.start", {"legacy": True},
+                           {"case-1": revision}, apply)
+
+    def test_sessions_recorded_before_epochs_never_become_measured_effort(self):
+        self.registered()
+        legacy = {"actor": "reviewer-1", "activity": "review", "amendments": [],
+                  "capture": "server_clock"}
+        self.legacy_sessions({
+            "running": dict(legacy, state="running", intervals=[[at("08:00:00"), None]]),
+            "paused": dict(legacy, state="paused",
+                           intervals=[[at("08:00:00"), at("08:30:00")]]),
+            "stopped": dict(legacy, state="stopped",
+                            intervals=[[at("07:00:00"), at("07:20:00")]]),
+        })
+        self.assertNotIn("interval_epochs", self.session("running"))
+        upgraded = self.runtime(EPOCH_2)
+        self.timed(upgraded, "18:00:00", {"action": "stop", "session_id": "running"})
+        self.assertEqual(self.session("running")["interval_epochs"], [[None, EPOCH_2]])
+        self.assertEqual(paper_review.session_effort(self.session("running")),
+                         {"active_seconds": None, "basis": "interrupted_by_restart"})
+        self.timed(upgraded, "18:01:00", {"action": "resume", "session_id": "paused"})
+        self.timed(upgraded, "18:02:00", {"action": "stop", "session_id": "paused"})
+        self.assertEqual(self.session("paused")["interval_epochs"], [[None, None],
+                                                                     [EPOCH_2, EPOCH_2]])
+        self.assertEqual(paper_review.session_effort(self.session("paused")),
+                         {"active_seconds": None, "basis": "recorded_without_runtime_epoch"})
+        self.assertEqual(paper_review.session_effort(self.session("stopped")),
+                         {"active_seconds": None, "basis": "recorded_without_runtime_epoch"})
+        summary = paper_review.summary(self.case())
+        self.assertEqual(summary["effort"]["review"]["known_seconds"], 0)
+        self.assertEqual(summary["effort"]["review"]["unknown_sessions"], 3)
+
+    def test_runtime_epochs_are_fresh_and_strict(self):
+        self.assertNotEqual(Store(self.path).epoch, Store(self.path).epoch)
+        for bad in ("", "1" * 31, "G" * 32, 7):
+            with self.subTest(bad=bad):
+                with self.assertRaises(ValueError):
+                    Store(self.path, epoch=bad)
 
     def test_amendments_append_with_reason_and_null_stays_unknown(self):
         self.registered()

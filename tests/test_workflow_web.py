@@ -3,6 +3,7 @@
 import http.client
 import json
 import secrets
+import shutil
 import tempfile
 import threading
 import unittest
@@ -15,7 +16,7 @@ from szl_forum_corpus.web import workflow_routes as routes
 from szl_forum_corpus.workflows import change_recheck, figure_check, paper_review
 from szl_forum_corpus.workflows.store import Store
 
-FIXTURES = Path(__file__).resolve().parent / "fixtures" / "science_workflows"
+FIXTURES = Path(paper_review.__file__).resolve().parent / "fixtures"
 BASE = "/operator/science"
 API = "/api/science/v1"
 
@@ -28,7 +29,8 @@ class WebTests(unittest.TestCase):
 
     def start(self):
         self.store = Store(self.db)
-        self.server = routes.LocalServer(self.store, 0, fixtures=FIXTURES)
+        # No fixtures argument: every web test exercises the default bundled-fixture path.
+        self.server = routes.LocalServer(self.store, 0)
         self.thread = threading.Thread(target=self.server.serve_forever,
                                        kwargs={"poll_interval": 0.05}, daemon=True)
         self.thread.start()
@@ -233,6 +235,14 @@ class WebTests(unittest.TestCase):
         self.assertIn("unknown (interrupted_or_open)", text)
         self.assertEqual(self.get_json(f"{API}/paper-cases/demo-paper/summary")
                          ["staff_effort"]["unknown_sessions"], 1)
+        # Stopping in the restarted runtime must not turn the outage into measured effort.
+        status, _, _ = self.form(f"{BASE}/paper-review/demo-paper/effort-events",
+                                 {"action": "stop", "session_id": "web-s1",
+                                  "expected_revision": str(self.case_revision())})
+        self.assertEqual(status, 303)
+        self.assertIn("unknown (interrupted_by_restart)", self.page(f"{BASE}/paper-review/demo-paper"))
+        summary = self.get_json(f"{API}/paper-cases/demo-paper/summary")["staff_effort"]
+        self.assertEqual((summary["known_seconds"], summary["unknown_sessions"]), (0, 1))
 
     def test_stale_form_keeps_unsaved_values_and_explains(self):
         self.load("paper")
@@ -296,6 +306,60 @@ class WebTests(unittest.TestCase):
         self.assertIn("Superseded by", old)
         self.assertEqual(self.get_json(f"{API}/change-sets/web-cs2")["tasks"].__len__(), 5)
 
+    def test_json_resolution_needs_an_integer_predicate_revision(self):
+        self.load("recheck")
+        task_id = change_recheck.task_id_for("demo-cs1", "c2")
+        path = f"{API}/recheck-tasks/{task_id}/events"
+
+        def send(event, request=None):
+            revision = next(task for task in self.get_json(f"{API}/recheck-tasks")["tasks"]
+                            if task["task_id"] == task_id)["revision"]
+            return self.api(path, {"request_id": request or secrets.token_hex(16),
+                                   "expected_revision": revision, "event": event})
+
+        self.assertEqual(send({"type": "start_review"})[0], 200)
+        self.assertEqual(send({"type": "set_predicate", "text": "assay rerun agrees"})[0], 200)
+        history = self.store.history(self.server.app.context, task_id)
+        resolve = {"type": "resolve", "evidence": "rerun log", "change_set_id": "demo-cs1"}
+        for raw in (b"true", b"1.0", b'"1"', b"null", b"0", b"-1"):
+            with self.subTest(predicate_revision=raw):
+                revision = self.store.get(self.server.app.context, change_recheck.TASK,
+                                          task_id)["revision"]
+                body = (b'{"request_id": "' + secrets.token_hex(16).encode() + b'", '
+                        b'"expected_revision": ' + str(revision).encode() + b', "event": '
+                        + json.dumps(resolve).encode()[:-1] + b', "predicate_revision": ' + raw
+                        + b"}}")
+                status, payload = self.api(path, None, raw=body)
+                self.assertEqual((status, payload["error"]["code"], payload["error"]["fields"]),
+                                 (422, "INVALID_INPUT", ["predicate_revision"]))
+                self.assertEqual(self.store.history(self.server.app.context, task_id), history)
+        self.assertEqual(send(dict(resolve, predicate_revision=2))[1]["error"]["code"],
+                         "STALE_REVISION")
+        status, payload = send(dict(resolve, predicate_revision=1))
+        self.assertEqual((status, payload["outcome"]["execution"]), (200, "resolved"))
+
+    def test_incomplete_coverage_warns_on_an_empty_queue_over_http(self):
+        context = self.server.app.context
+        quiet = json.dumps({"schema": "szl.research-anatomy.v1", "nodes": [
+            {"id": "q", "kind": "question", "title": "Synthetic question"},
+            {"id": "c", "kind": "claim", "title": "Synthetic claim", "depends_on": ["q"]}]})
+        for snapshot_id, coverage in (("quiet-old", "complete"), ("quiet-new", "unknown")):
+            change_recheck.register_snapshot(self.store, context, secrets.token_hex(16), {
+                "snapshot_id": snapshot_id, "evidence_kind": "synthetic", "provenance": "test",
+                "coverage": coverage, "graph_document": quiet})
+        change_recheck.create_change_set(self.store, context, secrets.token_hex(16), {
+            "change_set_id": "quiet-cs", "baseline_snapshot_id": "quiet-old",
+            "current_snapshot_id": "quiet-new", "required_claims": ["c"], "observed_digests": {},
+            "as_of": "2026-10-13T00:00:00Z", "expected_queue_revision": None})
+        queue = self.get_json(f"{API}/recheck-tasks")
+        self.assertEqual((queue["tasks"], queue["change_sets"]), ([], ["quiet-cs"]))
+        self.assertIn("an absent task is not evidence", queue["coverage_warning"])
+        page = self.page(f"{BASE}/rechecks")
+        self.assertIn("No recheck tasks.", page)
+        self.assertIn("an absent task is not evidence that a claim is unaffected", page)
+        self.assertIn("<code>quiet-cs</code>: baseline coverage complete, current coverage unknown",
+                      page)
+
     def test_figure_checks_end_to_end(self):
         self.assertEqual(self.load("figure"), f"{BASE}/figures")
         listing = self.page(f"{BASE}/figures")
@@ -341,6 +405,39 @@ class WebTests(unittest.TestCase):
             self.assertEqual((status, payload["error"]["code"]), (503, "KERNEL_UNAVAILABLE"))
         status, _, _ = self.request("GET", f"{API}/figure-checks/blocked-check")
         self.assertEqual(status, 404)
+
+    def test_default_fixture_path_is_the_packaged_copy(self):
+        self.assertEqual(Path(str(self.server.app.fixtures)), FIXTURES)
+        self.assertEqual(self.get_json(f"{API}/capabilities")["fixtures"], "AVAILABLE")
+        self.load("paper")
+        case = self.get_json(f"{API}/paper-cases/demo-paper")
+        self.assertEqual(case["provenance"], "szl_forum_corpus/workflows/fixtures/PROVENANCE.md")
+
+    def test_explicit_fixture_override_still_works_and_none_is_blocked(self):
+        headers = {"host": ["127.0.0.1:1"], "origin": ["http://127.0.0.1:1"],
+                   "content-type": ["application/x-www-form-urlencoded"]}
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory) / "fixtures"
+            shutil.copytree(FIXTURES, copy)
+            store = Store(Path(directory) / "override.sqlite3")
+            app = routes.WorkflowApp(store, "127.0.0.1:1", fixtures=copy)
+            body = urlencode({"csrf": app.csrf, "request_id": "e" * 32, "which": "paper"}).encode()
+            response = app.handle("POST", f"{BASE}/fixtures",
+                                  dict(headers, **{"content-length": [str(len(body))]}), body)
+            self.assertEqual((response.status, response.headers["Location"]),
+                             (303, f"{BASE}/paper-review/demo-paper"))
+            blocked = routes.WorkflowApp(Store(Path(directory) / "none.sqlite3"), "127.0.0.1:1",
+                                         fixtures=None)
+            body = urlencode({"csrf": blocked.csrf, "request_id": "f" * 32,
+                              "which": "paper"}).encode()
+            response = blocked.handle("POST", f"{BASE}/fixtures",
+                                      dict(headers, **{"content-length": [str(len(body))]}), body)
+            self.assertEqual(response.status, 503)
+            self.assertIn(b"CAPABILITY_UNAVAILABLE", response.body)
+            capabilities = json.loads(blocked.handle("GET", f"{API}/capabilities",
+                                                     {"host": ["127.0.0.1:1"]}, b"").body)
+            self.assertEqual(capabilities["fixtures"], "BLOCKED")
+            self.assertEqual(blocked.store.list(blocked.context, paper_review.KIND), [])
 
     def test_database_must_live_outside_the_repository(self):
         with self.assertRaises(SystemExit):

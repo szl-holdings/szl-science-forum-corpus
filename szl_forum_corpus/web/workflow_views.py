@@ -337,8 +337,15 @@ def recheck_queue(view: dict, snapshots: list[dict], csrf: str, *, message: str 
         f"<td>{e(task['condition'])}</td><td>{e(task['owner'] or 'unassigned')}</td>"
         f"<td>{e(len(task['affected_paths']))}</td></tr>"
         for task in view["tasks"])
-    warning = (f'<p class="notice">{e(view["coverage_warning"])}</p>'
-               if view["coverage_warning"] else "")
+    warning = ""
+    if view["coverage_warning"]:
+        gaps = "".join(
+            f"<li><code>{e(item['change_set_id'])}</code>: baseline coverage {e(item['baseline'])}, "
+            f"current coverage {e(item['current'])}, {e(item['tasks'])} task(s) created</li>"
+            for item in view["coverage"]["incomplete_change_sets"])
+        warning = (f'<div class="notice" role="status"><p>{e(view["coverage_warning"])}</p>'
+                   f"{'<ul>' + gaps + '</ul>' if gaps else ''}"
+                   f"<p>{e(view['coverage']['policy_text'])}</p></div>")
     snapshot_ids = [item["snapshot_id"] for item in snapshots]
     act = f"{BASE}/rechecks/change-sets"
     compare = ""

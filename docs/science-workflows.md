@@ -65,8 +65,16 @@ located reference, a bound locator on an accessible source, no unresolved adjudi
 a matching value or an accepted correction.
 
 Effort sessions use the server clock only. Open, paused or interrupted sessions are unknown, not
-zero; one reviewer cannot run two sessions at once; amendments append with a reason; `wait` is
-not staff effort. Rates stay `UNAVAILABLE` without a predeclared scoring policy.
+zero. One reviewer cannot run two sessions at once in any case of the tenant: the check runs
+inside the store's single-writer transaction, so competing starts record exactly one. Every
+interval records the runtime epoch that opened and closed it (a `Store` instance is one runtime;
+a restart is a new epoch). An interval closed by a different runtime spans a restart: its closing
+time is kept, but the session reads `interrupted_by_restart` (unknown) instead of counting the
+outage as work, whether the restart is followed by a pause or a stop. Sessions recorded before
+epochs existed read `recorded_without_runtime_epoch` (unknown) for the same reason. A reasoned
+amendment can still set a value. Epochs live in projections and event payloads, so the SQL
+schema and existing databases are unchanged. Amendments append with a reason; `wait` is not
+staff effort. Rates stay `UNAVAILABLE` without a predeclared scoring policy.
 
 ## Build 2: evidence-change recheck queue
 
@@ -77,11 +85,20 @@ are refused with their path, and unknown endpoints and duplicates are refused.
 A change set compares two exact snapshots with `szl_plan_research_changes` (union of old and new
 edges). In the same transaction it records the full report, creates one task per required claim
 in `RECHECK_REQUIRED` or `MISSING_REQUIRED_CLAIM` (or reached by a disputed edge), and supersedes
-each claim's earlier task. Tasks carry every known seed-to-claim path (bounded at 64), the kernel
-witness, input bindings and dependency order. Task execution (`open`, `in_review`, `waiting`,
-`resolved`, `superseded`) is separate from the evidence condition. A resolution needs a
-human-specified predicate, binds the current change set and predicate revision, and means only
-that the predicate was judged satisfied for those inputs. Removed required claims can never be
+each claim's earlier task. Tasks carry every known seed-to-claim path (at most 64 are kept; more
+sets `paths_truncated`), the kernel witness, input bindings and dependency order. Path enumeration
+first prunes, in linear time, every parent from which no seed is reachable, so unchanged ancestor
+branches cost nothing, and then charges every step to an explicit budget of 1,000,000 operations
+per change set (recorded as `path_enumeration`). Exceeding it refuses the change set with
+`TOO_LARGE` before the store command runs, so nothing is recorded. Task execution (`open`, `in_review`, `waiting`,
+`resolved`, `superseded`) is separate from the evidence condition. The queue's coverage warning is
+derived from every recorded change set, not only from tasks: a partial or unknown comparison that
+creates no task still warns, and an earlier incomplete change set keeps warning after later
+complete ones, because comparing other snapshots does not rediscover what it could have missed
+(`coverage.policy` = `every_recorded_change_set`; `coverage.incomplete_change_sets` names them).
+A resolution needs a human-specified predicate, binds the current change set and predicate
+revision (a strict positive integer: JSON `true`, `1.0`, strings and null are refused before
+anything is written), and means only that the predicate was judged satisfied for those inputs. Removed required claims can never be
 confirmed satisfied. A new change set supersedes an old resolution rather than inheriting it.
 
 ## Build 3: canonical figure package checker
@@ -135,15 +152,23 @@ JSON commands need the `X-SZL-CSRF` header from `/api/science/v1/session`.
 
 ## Fixtures
 
-`tests/fixtures/science_workflows/` holds hand-authored synthetic fixtures (see its
-`PROVENANCE.md`). Expected results in `expected.json` files were derived by hand before the code
-ran. They exercise every falsification case in the build contract: correct, wrong value, wrong
-unit, ambiguous identity, noncomparable endpoint, missing, abstained, unresolved reference,
-inaccessible source and unexpected candidate; shared-ancestor changes, a removed dependency with
-unchanged output bytes, a removed required claim, unknown revision, access denial, a disputed
-edge, cycles, stale resolution and malformed snapshots; moved, removed and relabelled points,
-altered sidecars, reformatting, non-finite values, invalid captions, extra or missing members,
-malformed SVG, DTDs and external references.
+`szl_forum_corpus/workflows/fixtures/` holds hand-authored synthetic fixtures (see its
+`PROVENANCE.md`). They ship as package data, so a normal wheel installation loads them through
+the workbench's default path (`importlib.resources`); `WorkflowApp` and `LocalServer` still accept
+an explicit `fixtures=` directory, and `fixtures=None` reports the loader as `BLOCKED`.
+`tests/test_workflow_packaging.py` checks that the package-data declaration covers every fixture
+file and loads all three fixtures from a package copy outside the checkout; the CI
+`installed-wheel` job builds the real wheel, installs it into a clean virtual environment outside
+the checkout and does the same through HTTP (`tests/installed_wheel_acceptance.py`).
+
+Expected results in `expected.json` files were derived by hand before the code ran. They
+exercise every falsification case in the build contract: correct, wrong value, wrong unit,
+ambiguous identity, noncomparable endpoint, missing, abstained, unresolved reference, inaccessible
+source and unexpected candidate; shared-ancestor changes, a removed dependency with unchanged
+output bytes, a removed required claim, unknown revision, access denial, a disputed edge, cycles,
+stale resolution and malformed snapshots; moved, removed and relabelled points, altered sidecars,
+reformatting, non-finite values, invalid captions, extra or missing members, malformed SVG, DTDs
+and external references.
 
 ## Not established
 

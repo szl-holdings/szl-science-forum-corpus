@@ -14,6 +14,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 from pathlib import Path
+import re
+import secrets
 import sqlite3
 from typing import Callable
 
@@ -130,11 +132,24 @@ def _read_blob(connection: sqlite3.Connection, digest: str) -> bytes:
 
 
 class Store:
-    """A single-writer local store. The path is fixed by the application, never by a request."""
+    """A single-writer local store. The path is fixed by the application, never by a request.
 
-    def __init__(self, path: Path, *, faults: frozenset[str] = frozenset()):
+    Each Store instance is one runtime. Its ``epoch`` is a fresh random value unless supplied, so
+    a process restart (a new Store over the same file) always has a different epoch. Workflows
+    record it next to anything whose meaning depends on the runtime staying up, such as an open
+    effort interval. The epoch lives in projections and event payloads, so the SQL schema (and
+    every existing database) is unchanged.
+    """
+
+    def __init__(self, path: Path, *, faults: frozenset[str] = frozenset(),
+                 epoch: str | None = None):
         self.path = Path(path)
         self._faults = faults  # test-only failure injection points
+        if epoch is None:
+            epoch = secrets.token_hex(16)
+        if not isinstance(epoch, str) or re.fullmatch(r"[0-9a-f]{32}", epoch) is None:
+            raise ValueError("a runtime epoch is 32 lowercase hexadecimal characters")
+        self.epoch = epoch
         connection = self._connect()
         try:
             self._prepare(connection)

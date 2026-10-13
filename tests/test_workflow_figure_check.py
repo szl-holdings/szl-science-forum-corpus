@@ -11,7 +11,7 @@ from szl_forum_corpus.workflows import figure_check as figures
 from szl_forum_corpus.workflows.contracts import WorkflowError
 from szl_forum_corpus.workflows.store import Context, Store
 
-FIXTURES = Path(__file__).resolve().parent / "fixtures" / "science_workflows" / "figure_check"
+FIXTURES = Path(figures.__file__).resolve().parent / "fixtures" / "figure_check"
 OPERATOR = Context("operator-1", "tenant-a", "operator")
 VIEWER = Context("viewer-1", "tenant-a", "viewer")
 OTHER = Context("operator-9", "tenant-b", "operator")
@@ -43,7 +43,7 @@ class FigureCheckTests(unittest.TestCase):
 
     def register(self, bundle_id, member_list, context=OPERATOR, **extra):
         payload = {"bundle_id": bundle_id, "evidence_kind": "synthetic",
-                   "provenance": "tests/fixtures/science_workflows/PROVENANCE.md",
+                   "provenance": "szl_forum_corpus/workflows/fixtures/PROVENANCE.md",
                    "members": member_list}
         payload.update(extra)
         return figures.register_bundle(self.store, context, self.rid(), payload)

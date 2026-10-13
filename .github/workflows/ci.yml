@@ -48,3 +48,24 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Run offline tests
         run: python -B -m unittest discover -s tests -v
+
+  # Source-checkout tests cannot see packaging gaps: build the real wheel, install it into a clean
+  # virtual environment outside the checkout and load every bundled fixture through the default
+  # workbench path. Building uses pip's default isolation (it downloads setuptools); the install
+  # itself uses --no-index. Nothing is published.
+  installed-wheel:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Build, install outside the checkout and load the bundled fixtures
+        run: python -B tests/installed_wheel_acceptance.py

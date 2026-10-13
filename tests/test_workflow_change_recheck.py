@@ -2,15 +2,18 @@
 
 import itertools
 import json
+import random
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
+from szl_forum_corpus.web import workflow_views as views
 from szl_forum_corpus.workflows import change_recheck as recheck
 from szl_forum_corpus.workflows.contracts import WorkflowError
 from szl_forum_corpus.workflows.store import Context, Store
 
-FIXTURES = Path(__file__).resolve().parent / "fixtures" / "science_workflows" / "change_recheck"
+FIXTURES = Path(recheck.__file__).resolve().parent / "fixtures" / "change_recheck"
 OPERATOR = Context("operator-1", "tenant-a", "operator")
 REVIEWER = Context("reviewer-1", "tenant-a", "reviewer")
 SECOND = Context("reviewer-2", "tenant-a", "reviewer")
@@ -25,7 +28,7 @@ def text(name):
 
 def snapshot(snapshot_id, document, coverage="complete", **extra):
     payload = {"snapshot_id": snapshot_id, "evidence_kind": "synthetic",
-               "provenance": "tests/fixtures/science_workflows/PROVENANCE.md",
+               "provenance": "szl_forum_corpus/workflows/fixtures/PROVENANCE.md",
                "coverage": coverage, "graph_document": document}
     payload.update(extra)
     return payload
@@ -34,6 +37,59 @@ def snapshot(snapshot_id, document, coverage="complete", **extra):
 def graph(*nodes, links=()):
     return json.dumps({"schema": "szl.research-anatomy.v1", "nodes": list(nodes),
                        "evidence_links": list(links)})
+
+
+def ladder(layers, seed_title, *, seed_below_ladder):
+    """A seed s and a claim c over a ladder of question nodes with 2**layers routes through it.
+
+    With ``seed_below_ladder`` every route ends at s (2**layers seed paths); otherwise c depends
+    on s directly and no route through the ladder ever reaches a seed.
+    """
+
+    nodes = [{"id": "s", "kind": "question", "title": seed_title}]
+    for layer in range(layers):
+        below = ([f"a{layer + 1}", f"b{layer + 1}"] if layer + 1 < layers
+                 else (["s"] if seed_below_ladder else []))
+        for side in "ab":
+            nodes.append({"id": f"{side}{layer}", "kind": "question",
+                          "title": f"Unchanged step {side}{layer}", "depends_on": below})
+    nodes.append({"id": "c", "kind": "claim", "title": "Synthetic claim",
+                  "depends_on": ["a0", "b0"] + ([] if seed_below_ladder else ["s"])})
+    return graph(*nodes)
+
+
+def unbounded_visits(parents, claim):
+    """How many nodes the merged #31 enumeration visited: every simple route, seed or not."""
+
+    visits, stack = 0, [(claim, (claim,))]
+    while stack:
+        node, suffix = stack.pop()
+        visits += 1
+        stack.extend((parent, (parent,) + suffix) for parent in parents.get(node, ())
+                     if parent not in suffix)
+    return visits
+
+
+def merged_paths(parents, seeds, claim, limit):
+    """The merged #31 enumeration, kept verbatim as the reference for which paths are kept."""
+
+    paths, truncated, stack = [], False, [(claim, [claim])]
+    while stack:
+        node, suffix = stack.pop()
+        if node in seeds:
+            if len(paths) == limit:
+                truncated = True
+                break
+            paths.append(list(suffix))
+        for parent in sorted(parents.get(node, set()), reverse=True):
+            if parent not in suffix:
+                stack.append((parent, [parent] + suffix))
+    return sorted(paths, key=lambda path: (len(path), path)), truncated
+
+
+# A claim whose only ancestor declares no artifact: comparing it with itself has no declared impact.
+QUIET = graph({"id": "q", "kind": "question", "title": "Synthetic question"},
+              {"id": "c", "kind": "claim", "title": "Synthetic claim", "depends_on": ["q"]})
 
 
 class ChangeRecheckTests(unittest.TestCase):
@@ -195,6 +251,37 @@ class ChangeRecheckTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, "STALE_REVISION")
         self.assertEqual(self.task("cs1", "c1")["execution"], "in_review")
 
+    def test_predicate_revision_must_be_a_strict_positive_integer(self):
+        self.fixtures()
+        self.event("cs1", "c1", {"type": "start_review"})
+        self.event("cs1", "c1", {"type": "set_predicate", "text": "refit matches within CI"})
+        task_id = recheck.task_id_for("cs1", "c1")
+        before = (self.task("cs1", "c1"), self.store.history(REVIEWER, task_id))
+        self.assertEqual(before[0]["predicate"]["revision"], 1)
+        for bad in (True, False, 1.0, 2.0, "1", None, 0, -1):
+            with self.subTest(bad=bad):
+                request = self.rid()
+                with self.assertRaises(WorkflowError) as caught:
+                    recheck.record_task_event(self.store, REVIEWER, request, task_id,
+                                              before[0]["revision"],
+                                              {"type": "resolve", "evidence": "x",
+                                               "change_set_id": "cs1", "predicate_revision": bad})
+                self.assertEqual((caught.exception.code, caught.exception.fields),
+                                 ("INVALID_INPUT", ["predicate_revision"]))
+                self.assertIsNone(self.store.recover(REVIEWER, request))
+                self.assertEqual((self.task("cs1", "c1"), self.store.history(REVIEWER, task_id)),
+                                 before)
+        self.event("cs1", "c1", {"type": "set_predicate", "text": "refit and d1 re-pinned"})
+        with self.assertRaises(WorkflowError) as caught:
+            self.event("cs1", "c1", {"type": "resolve", "evidence": "x", "change_set_id": "cs1",
+                                     "predicate_revision": 1})
+        self.assertEqual(caught.exception.code, "STALE_REVISION")
+        self.event("cs1", "c1", {"type": "resolve", "evidence": "x", "change_set_id": "cs1",
+                                 "predicate_revision": 2})
+        task = self.task("cs1", "c1")
+        self.assertEqual((task["execution"], task["resolution"]["predicate"]["revision"]),
+                         ("resolved", 2))
+
     def test_resolution_requires_review_and_a_predicate(self):
         self.fixtures()
         with self.assertRaises(WorkflowError):
@@ -287,6 +374,170 @@ class ChangeRecheckTests(unittest.TestCase):
         self.change("cs1", "v1", "v2", self.expected["first"]["observed_digests"])
         self.assertEqual(self.task("cs1", "c1")["discovery_coverage"], "incomplete")
         self.assertIn("not evidence", recheck.queue_view(self.store, REVIEWER)["coverage_warning"])
+
+    # ---- coverage of change sets that create no task -----------------------------------------
+
+    def quiet_change_set(self, change_set_id, baseline, current):
+        self.register(f"{change_set_id}-old", QUIET, coverage=baseline)
+        self.register(f"{change_set_id}-new", QUIET, coverage=current)
+        return self.change(change_set_id, f"{change_set_id}-old", f"{change_set_id}-new", {},
+                           claims=["c"])
+
+    def html(self, view):
+        return views.recheck_queue(view, self.store.list(REVIEWER, recheck.SNAPSHOT), "token")
+
+    def test_incomplete_change_set_without_tasks_still_warns_in_json_and_html(self):
+        for number, (baseline, current) in enumerate((("complete", "partial"),
+                                                      ("unknown", "complete"),
+                                                      ("partial", "unknown"))):
+            with self.subTest(baseline=baseline, current=current):
+                self.directory.cleanup()
+                self.setUp()
+                outcome = self.quiet_change_set(f"cs{number}", baseline, current)
+                self.assertEqual((outcome["outcome"]["tasks"], outcome["outcome"]["report_status"]),
+                                 ([], "NO_DECLARED_IMPACT"))
+                view = recheck.queue_view(self.store, REVIEWER)
+                self.assertEqual(view["tasks"], [])
+                self.assertEqual(view["change_sets"], [f"cs{number}"])
+                self.assertEqual(view["coverage_warning"], recheck.COVERAGE_WARNING)
+                self.assertEqual(view["coverage"]["incomplete_change_sets"], [
+                    {"change_set_id": f"cs{number}", "baseline": baseline, "current": current,
+                     "tasks": 0}])
+                self.assertEqual(view["coverage"]["active_tasks_with_incomplete_discovery"], 0)
+                page = self.html(view)
+                self.assertIn("No recheck tasks.", page)
+                self.assertIn("an absent task is not evidence that a claim is unaffected", page)
+                self.assertIn(f"<code>cs{number}</code>: baseline coverage {baseline}", page)
+
+    def test_complete_change_set_without_tasks_shows_no_warning(self):
+        self.quiet_change_set("cs1", "complete", "complete")
+        view = recheck.queue_view(self.store, REVIEWER)
+        self.assertEqual((view["tasks"], view["change_sets"]), ([], ["cs1"]))
+        self.assertIsNone(view["coverage_warning"])
+        self.assertEqual(view["coverage"]["incomplete_change_sets"], [])
+        page = self.html(view)
+        self.assertIn("No recheck tasks.", page)
+        self.assertNotIn('class="notice"', page)
+        self.assertNotIn("not evidence that a claim is unaffected", page)
+
+    def test_an_earlier_incomplete_change_set_keeps_warning_after_a_complete_one(self):
+        # Policy: every recorded change set counts; a later complete comparison of other
+        # snapshots does not rediscover what the earlier partial comparison could have missed.
+        self.assertEqual(recheck.COVERAGE_POLICY, "every_recorded_change_set")
+        self.quiet_change_set("cs1", "complete", "partial")
+        self.quiet_change_set("cs2", "complete", "complete")
+        view = recheck.queue_view(self.store, REVIEWER)
+        self.assertEqual(view["change_sets"], ["cs1", "cs2"])
+        self.assertEqual([item["change_set_id"] for item in view["coverage"]["incomplete_change_sets"]],
+                         ["cs1"])
+        self.assertEqual(view["coverage_warning"], recheck.COVERAGE_WARNING)
+        self.assertEqual(view["coverage"]["policy_text"], recheck.COVERAGE_POLICY_TEXT)
+        self.assertIn("<code>cs1</code>", self.html(view))
+        self.assertNotIn("<code>cs2</code>", self.html(view))
+
+    def test_superseding_tasks_does_not_clear_an_earlier_incomplete_change_set(self):
+        self.register("v1", text("baseline.json"))
+        self.register("v2", text("current.json"), coverage="partial")
+        self.change("cs1", "v1", "v2", self.expected["first"]["observed_digests"])
+        self.register("v2c", text("current.json"))
+        self.register("v3", text("later.json"), disputed_edges=[
+            {"dependency": "d2", "dependent": "r1", "note": "batch-to-fit mapping disputed"}])
+        self.change("cs2", "v2c", "v3", self.expected["second"]["observed_digests"])
+        self.assertEqual(sorted(self.task("cs1", claim)["execution"] for claim in
+                                self.expected["first"]["task_claims"]), ["superseded"] * 4)
+        view = recheck.queue_view(self.store, REVIEWER)
+        self.assertEqual(view["coverage"]["active_tasks_with_incomplete_discovery"], 0)
+        self.assertEqual([item["change_set_id"] for item in view["coverage"]["incomplete_change_sets"]],
+                         ["cs1"])
+        self.assertEqual(view["coverage_warning"], recheck.COVERAGE_WARNING)
+
+    # ---- bounded known-path enumeration -------------------------------------------------------
+
+    def ladder_change_set(self, change_set_id, layers, *, seed_below_ladder, request=None):
+        old, new = f"{change_set_id}-old", f"{change_set_id}-new"
+        self.register(old, ladder(layers, "Seed v1", seed_below_ladder=seed_below_ladder))
+        self.register(new, ladder(layers, "Seed v2", seed_below_ladder=seed_below_ladder))
+        return self.change(change_set_id, old, new, {}, claims=["c"], request=request)
+
+    def test_branches_that_never_reach_a_seed_cost_no_enumeration_work(self):
+        operations = {}
+        for layers in (6, 14):
+            self.ladder_change_set(f"cs{layers}", layers, seed_below_ladder=False)
+            change_set = self.store.get(REVIEWER, recheck.CHANGE_SET, f"cs{layers}")
+            task = self.task(f"cs{layers}", "c")
+            self.assertEqual((task["affected_paths"], task["paths_truncated"]), ([["s", "c"]], False))
+            enumeration = change_set["path_enumeration"]
+            self.assertEqual((enumeration["pruning"], enumeration["budget_operations"],
+                              enumeration["paths_kept_per_claim"]),
+                             ("seed_reachability", recheck.MAX_PATH_WORK, 64))
+            operations[layers] = enumeration["operations"]
+        # The unchanged ladder never reaches a seed: its 2**14 routes cost nothing, so the work is
+        # the same small count at 6 and at 14 layers.
+        self.assertEqual(operations[6], operations[14])
+        self.assertLessEqual(operations[14], 8)
+        old = recheck.kernels.load(recheck.KERNEL).szl_change_graph(
+            json.loads(ladder(14, "Seed v1", seed_below_ladder=False)))[1]
+        self.assertEqual(unbounded_visits(old, "c"), 2 ** 15)  # what the merged search visited
+
+    def test_more_than_64_known_paths_are_kept_at_64_and_reported_truncated(self):
+        self.ladder_change_set("cs1", 7, seed_below_ladder=True)
+        task = self.task("cs1", "c")
+        self.assertTrue(task["paths_truncated"])
+        self.assertEqual(len(task["affected_paths"]), recheck.MAX_PATHS)
+        self.assertEqual(len({tuple(path) for path in task["affected_paths"]}), recheck.MAX_PATHS)
+        for path in task["affected_paths"]:
+            self.assertEqual((path[0], path[-1], len(path)), ("s", "c", 9))
+        operations = self.store.get(REVIEWER, recheck.CHANGE_SET, "cs1")["path_enumeration"]["operations"]
+        self.assertLess(operations, 2000)
+
+    def test_exceeding_the_work_budget_refuses_the_change_set_atomically(self):
+        self.fixtures()
+        before = recheck.queue_view(self.store, REVIEWER)
+        request = self.rid()
+        with mock.patch.object(recheck, "MAX_PATH_WORK", 50):
+            with self.assertRaises(WorkflowError) as caught:
+                self.ladder_change_set("cs-big", 7, seed_below_ladder=True, request=request)
+        self.assertEqual((caught.exception.code, caught.exception.fields),
+                         ("TOO_LARGE", ["path_enumeration"]))
+        self.assertIn("nothing was recorded", caught.exception.message)
+        self.assertEqual(recheck.queue_view(self.store, REVIEWER), before)
+        self.assertNotIn("cs-big", [item["change_set_id"] for item in
+                                    self.store.list(REVIEWER, recheck.CHANGE_SET)])
+        self.assertIsNone(self.store.recover(OPERATOR, request))
+        with self.assertRaises(WorkflowError):
+            self.task("cs-big", "c")
+        # Under the real budget the same request ID now records the change set once.
+        outcome = self.change("cs-big", "cs-big-old", "cs-big-new", {}, claims=["c"],
+                              request=request)
+        self.assertEqual(outcome["outcome"]["tasks"], [recheck.task_id_for("cs-big", "c")])
+
+    def test_bounded_search_keeps_exactly_the_paths_the_merged_search_kept(self):
+        generator = random.Random(20261013)
+        for trial in range(300):
+            names = [f"n{index}" for index in range(generator.randint(3, 9))]
+            parents = {name: {other for other in names if other != name
+                              and generator.random() < 0.3} for name in names}
+            seeds = set(generator.sample(names, generator.randint(1, 3)))
+            limit = generator.choice([1, 2, 3, 64])
+            pruned = recheck._seed_reachable_parents(parents, seeds)
+            for claim in names:
+                with self.subTest(trial=trial, claim=claim),                         mock.patch.object(recheck, "MAX_PATHS", limit):
+                    self.assertEqual(recheck._paths(pruned, seeds, claim, recheck._Work(10 ** 7)),
+                                     merged_paths(parents, seeds, claim, limit))
+
+    def test_budget_counts_operations_in_a_union_cycle(self):
+        # Old x <- y and new y <- x are each acyclic; their union is a cycle the search must cut.
+        parents = {"c": {"x"}, "x": {"y"}, "y": {"x", "s"}, "s": set(), "z": {"s"}}
+        seeds = {"s"}
+        pruned = recheck._seed_reachable_parents(parents, seeds)
+        self.assertEqual(pruned, {"s": [], "z": ["s"], "y": ["s", "x"], "x": ["y"], "c": ["x"]})
+        work = recheck._Work(100)
+        self.assertEqual(recheck._paths(pruned, seeds, "c", work), ([["s", "y", "x", "c"]], False))
+        self.assertEqual(work.used, 12)
+        with self.assertRaises(WorkflowError) as caught:
+            recheck._paths(pruned, seeds, "c", recheck._Work(11))
+        self.assertEqual(caught.exception.code, "TOO_LARGE")
+        self.assertEqual(recheck._paths(pruned, seeds, "q", recheck._Work(0)), ([], False))
 
     def test_scope_roles_and_restart(self):
         self.fixtures()
