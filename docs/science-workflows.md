@@ -77,8 +77,12 @@ are refused with their path, and unknown endpoints and duplicates are refused.
 A change set compares two exact snapshots with `szl_plan_research_changes` (union of old and new
 edges). In the same transaction it records the full report, creates one task per required claim
 in `RECHECK_REQUIRED` or `MISSING_REQUIRED_CLAIM` (or reached by a disputed edge), and supersedes
-each claim's earlier task. Tasks carry every known seed-to-claim path (bounded at 64), the kernel
-witness, input bindings and dependency order. Task execution (`open`, `in_review`, `waiting`,
+each claim's earlier task. Tasks carry every known seed-to-claim path (at most 64 are kept; more
+sets `paths_truncated`), the kernel witness, input bindings and dependency order. Path enumeration
+first prunes, in linear time, every parent from which no seed is reachable, so unchanged ancestor
+branches cost nothing, and then charges every step to an explicit budget of 1,000,000 operations
+per change set (recorded as `path_enumeration`). Exceeding it refuses the change set with
+`TOO_LARGE` before the store command runs, so nothing is recorded. Task execution (`open`, `in_review`, `waiting`,
 `resolved`, `superseded`) is separate from the evidence condition. The queue's coverage warning is
 derived from every recorded change set, not only from tasks: a partial or unknown comparison that
 creates no task still warns, and an earlier incomplete change set keeps warning after later

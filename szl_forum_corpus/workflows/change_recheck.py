@@ -23,7 +23,7 @@ TASK = "recheck_task"
 QUEUE = "recheck_queue"
 QUEUE_ID = "recheck-queue"
 KERNEL = "research_change_impact.py"
-ADAPTER_REVISION = "change-recheck-adapter.v1"
+ADAPTER_REVISION = "change-recheck-adapter.v2"
 COVERAGE = ("complete", "partial", "unknown")
 EXECUTION = ("open", "in_review", "waiting", "resolved", "superseded")
 CONDITIONS = ("access_limited", "unavailable_in_declared_scope", "insufficient_coverage",
@@ -31,6 +31,11 @@ CONDITIONS = ("access_limited", "unavailable_in_declared_scope", "insufficient_c
 WAIT_CONDITIONS = tuple(name for name in CONDITIONS if name != "human_confirmed_satisfied")
 TASK_STATES = ("RECHECK_REQUIRED", "MISSING_REQUIRED_CLAIM")
 MAX_PATHS = 64
+# Explicit work budget for one change set's known-path enumeration: one unit per parent edge
+# considered or search frame closed, plus the length of every path kept. Branches that cannot
+# reach a seed are pruned before they cost anything; exceeding the budget refuses the change set
+# before anything is written, so a recorded change set never carries a silently partial search.
+MAX_PATH_WORK = 1_000_000
 NEEDS_RECHECK = "Needs recheck"
 UNCHANGED_OUTPUT = "Output unchanged; changed inputs still require review."
 COVERAGE_POLICY = "every_recorded_change_set"
@@ -167,23 +172,77 @@ def _union_parents(old: dict, new: dict) -> dict[str, set[str]]:
     return {key: set(old.get(key, set())) | set(new.get(key, set())) for key in set(old) | set(new)}
 
 
-def _paths(parents: dict[str, set[str]], seeds: set[str], claim: str) -> tuple[list[list[str]], bool]:
-    """All known seed-to-claim paths over the union of old and new edges, bounded."""
+class _Work:
+    """The operation budget of one change set's path enumeration, counted, never timed."""
+
+    def __init__(self, limit: int):
+        self.limit = limit
+        self.used = 0
+
+    def spend(self, units: int = 1) -> None:
+        self.used += units
+        if self.used > self.limit:
+            raise WorkflowError("TOO_LARGE", "known-path enumeration exceeded its budget of "
+                                f"{self.limit} operations; nothing was recorded",
+                                fields=["path_enumeration"])
+
+
+def _seed_reachable_parents(parents: dict[str, set[str]], seeds: set[str]) -> dict[str, list[str]]:
+    """Memoized pruning, computed once per change set in linear time.
+
+    Maps every node from which some seed can be reached (through parents) to its sorted parents
+    that can also reach a seed. A branch that never reaches a seed is never entered.
+    """
+
+    children: dict[str, set[str]] = {}
+    for node, node_parents in parents.items():
+        for parent in node_parents:
+            children.setdefault(parent, set()).add(node)
+    reach, stack = set(seeds), list(seeds)
+    while stack:
+        for child in children.get(stack.pop(), ()):
+            if child not in reach:
+                reach.add(child)
+                stack.append(child)
+    return {node: sorted(parent for parent in parents.get(node, ()) if parent in reach)
+            for node in reach}
+
+
+def _paths(pruned: dict[str, list[str]], seeds: set[str], claim: str,
+           work: _Work) -> tuple[list[list[str]], bool]:
+    """Known seed-to-claim paths over the union of old and new edges, bounded twice.
+
+    At most MAX_PATHS paths are kept (finding one more reports ``truncated``), and every step is
+    charged to ``work``. The search order is the same depth-first order as before the bound, so
+    the paths kept are the ones the unbounded search would have kept.
+    """
 
     paths: list[list[str]] = []
-    truncated = False
-    stack = [(claim, [claim])]
-    while stack:
-        node, suffix = stack.pop()
-        if node in seeds:
+    if claim not in pruned:
+        return paths, False
+    path, on_path = [claim], {claim}
+    if claim in seeds:
+        work.spend(1)
+        paths.append([claim])
+    frames = [iter(pruned[claim])]
+    while frames:
+        work.spend()
+        parent = next(frames[-1], None)
+        if parent is None:
+            frames.pop()
+            on_path.discard(path.pop())
+            continue
+        if parent in on_path:  # the union of two acyclic graphs can still contain a cycle
+            continue
+        path.append(parent)
+        on_path.add(parent)
+        if parent in seeds:
             if len(paths) == MAX_PATHS:
-                truncated = True
-                break
-            paths.append(list(suffix))
-        for parent in sorted(parents.get(node, set()), reverse=True):
-            if parent not in suffix:
-                stack.append((parent, [parent] + suffix))
-    return sorted(paths, key=lambda path: (len(path), path)), truncated
+                return sorted(paths, key=lambda item: (len(item), item)), True
+            work.spend(len(path))
+            paths.append(path[::-1])
+        frames.append(iter(pruned[parent]))
+    return sorted(paths, key=lambda item: (len(item), item)), False
 
 
 def _ancestors(parents: dict[str, set[str]], claim: str) -> set[str]:
@@ -234,10 +293,14 @@ def create_change_set(store: Store, context: Context, request_id: str, payload: 
     order = {claim: position for position, claim in enumerate(report["recheck_order"])}
     discovery = ("complete" if baseline["coverage"] == current["coverage"] == "complete"
                  else "incomplete")
+    # Bounded before the store command runs: a refusal here writes nothing at all.
+    work = _Work(MAX_PATH_WORK)
+    pruned = _seed_reachable_parents(parents, seeds)
 
     planned = []
     for claim in report["claims"]:
-        reach = _ancestors(parents, claim["id"]) | {claim["id"]}
+        # Ancestors only matter for disputed edges; without any, skip the traversal entirely.
+        reach = (_ancestors(parents, claim["id"]) if disputed else set()) | {claim["id"]}
         disputes = sorted([{"dependency": a, "dependent": b, "note": edge["note"]}
                            for (a, b), edge in disputed.items() if b in reach],
                           key=lambda e: (e["dependent"], e["dependency"]))
@@ -248,7 +311,7 @@ def create_change_set(store: Store, context: Context, request_id: str, payload: 
             triggers.append("DISPUTED_EDGE")
         if not triggers:
             continue
-        paths, truncated = _paths(parents, seeds, claim["id"])
+        paths, truncated = _paths(pruned, seeds, claim["id"], work)
         planned.append({
             "claim_id": claim["id"], "kernel_state": claim["state"], "triggers": triggers,
             "witness_path": claim["witness_path"], "affected_paths": paths,
@@ -326,6 +389,9 @@ def create_change_set(store: Store, context: Context, request_id: str, payload: 
                          "discovery": discovery},
             "kernel_binding": dict(kernels.binding(KERNEL), operation="szl_plan_research_changes",
                                    adapter_revision=ADAPTER_REVISION, traversal="union_of_edges"),
+            "path_enumeration": {"pruning": "seed_reachability", "operations": work.used,
+                                 "budget_operations": MAX_PATH_WORK,
+                                 "paths_kept_per_claim": MAX_PATHS},
             "limitations": [
                 "Only declared nodes and edges are compared; synthetic coverage proves graph "
                 "mechanics, not complete scientific dependency discovery.",
