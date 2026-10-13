@@ -79,9 +79,13 @@ edges). In the same transaction it records the full report, creates one task per
 in `RECHECK_REQUIRED` or `MISSING_REQUIRED_CLAIM` (or reached by a disputed edge), and supersedes
 each claim's earlier task. Tasks carry every known seed-to-claim path (bounded at 64), the kernel
 witness, input bindings and dependency order. Task execution (`open`, `in_review`, `waiting`,
-`resolved`, `superseded`) is separate from the evidence condition. A resolution needs a
-human-specified predicate, binds the current change set and predicate revision, and means only
-that the predicate was judged satisfied for those inputs. Removed required claims can never be
+`resolved`, `superseded`) is separate from the evidence condition. The queue's coverage warning is
+derived from every recorded change set, not only from tasks: a partial or unknown comparison that
+creates no task still warns, and an earlier incomplete change set keeps warning after later
+complete ones, because comparing other snapshots does not rediscover what it could have missed
+(`coverage.policy` = `every_recorded_change_set`; `coverage.incomplete_change_sets` names them).
+A resolution needs a human-specified predicate, binds the current change set and predicate
+revision, and means only that the predicate was judged satisfied for those inputs. Removed required claims can never be
 confirmed satisfied. A new change set supersedes an old resolution rather than inheriting it.
 
 ## Build 3: canonical figure package checker

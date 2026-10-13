@@ -33,6 +33,13 @@ TASK_STATES = ("RECHECK_REQUIRED", "MISSING_REQUIRED_CLAIM")
 MAX_PATHS = 64
 NEEDS_RECHECK = "Needs recheck"
 UNCHANGED_OUTPUT = "Output unchanged; changed inputs still require review."
+COVERAGE_POLICY = "every_recorded_change_set"
+COVERAGE_POLICY_TEXT = (
+    "Every change set recorded in this queue counts, including earlier ones and ones that created "
+    "no task: a later comparison of other snapshots does not rediscover what an earlier partial or "
+    "unknown comparison could have missed, and superseding its tasks does not complete it.")
+COVERAGE_WARNING = ("Discovery coverage is incomplete for at least one recorded change set: an "
+                    "absent task is not evidence that a claim is unaffected.")
 
 
 def _kernel():
@@ -448,8 +455,20 @@ def queue_view(store: Store, context: Context) -> dict:
         execution[task["execution"]] += 1
         if task["execution"] != "superseded":
             condition[task["condition"]] += 1
-    incomplete = any(task["discovery_coverage"] != "complete" for task in tasks
-                     if task["execution"] != "superseded")
+    # Coverage is a property of each comparison, not of the tasks it happened to create: a
+    # partial or unknown change set with no task must still warn (see COVERAGE_POLICY_TEXT).
+    queued = [] if queue is None else queue["change_sets"]
+    recorded = {item["change_set_id"]: item for item in store.list(context, CHANGE_SET)}
+    incomplete_sets = [
+        {"change_set_id": change_set_id,
+         "baseline": recorded[change_set_id]["coverage"]["baseline"],
+         "current": recorded[change_set_id]["coverage"]["current"],
+         "tasks": len(recorded[change_set_id]["tasks"])}
+        for change_set_id in queued
+        if change_set_id in recorded and recorded[change_set_id]["coverage"]["discovery"] != "complete"]
+    active_incomplete = sum(1 for task in tasks if task["execution"] != "superseded"
+                            and task["discovery_coverage"] != "complete")
+    incomplete = bool(incomplete_sets) or active_incomplete > 0
     return {"queue_revision": None if queue is None else queue["revision"],
             "change_sets": [] if queue is None else queue["change_sets"],
             "current_task_by_claim": {} if queue is None else queue["current_task_by_claim"],
@@ -459,6 +478,7 @@ def queue_view(store: Store, context: Context) -> dict:
                                                      task["claim_id"], task["task_id"])),
             "counts": {"total": len(tasks), "execution": execution,
                        "condition_of_active_tasks": condition},
-            "coverage_warning": ("Discovery coverage is incomplete for at least one active task: "
-                                 "an absent task is not evidence that a claim is unaffected."
-                                 if incomplete else None)}
+            "coverage": {"policy": COVERAGE_POLICY, "policy_text": COVERAGE_POLICY_TEXT,
+                         "incomplete_change_sets": incomplete_sets,
+                         "active_tasks_with_incomplete_discovery": active_incomplete},
+            "coverage_warning": COVERAGE_WARNING if incomplete else None}

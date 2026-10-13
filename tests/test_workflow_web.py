@@ -298,6 +298,28 @@ class WebTests(unittest.TestCase):
         self.assertIn("Superseded by", old)
         self.assertEqual(self.get_json(f"{API}/change-sets/web-cs2")["tasks"].__len__(), 5)
 
+    def test_incomplete_coverage_warns_on_an_empty_queue_over_http(self):
+        context = self.server.app.context
+        quiet = json.dumps({"schema": "szl.research-anatomy.v1", "nodes": [
+            {"id": "q", "kind": "question", "title": "Synthetic question"},
+            {"id": "c", "kind": "claim", "title": "Synthetic claim", "depends_on": ["q"]}]})
+        for snapshot_id, coverage in (("quiet-old", "complete"), ("quiet-new", "unknown")):
+            change_recheck.register_snapshot(self.store, context, secrets.token_hex(16), {
+                "snapshot_id": snapshot_id, "evidence_kind": "synthetic", "provenance": "test",
+                "coverage": coverage, "graph_document": quiet})
+        change_recheck.create_change_set(self.store, context, secrets.token_hex(16), {
+            "change_set_id": "quiet-cs", "baseline_snapshot_id": "quiet-old",
+            "current_snapshot_id": "quiet-new", "required_claims": ["c"], "observed_digests": {},
+            "as_of": "2026-10-13T00:00:00Z", "expected_queue_revision": None})
+        queue = self.get_json(f"{API}/recheck-tasks")
+        self.assertEqual((queue["tasks"], queue["change_sets"]), ([], ["quiet-cs"]))
+        self.assertIn("an absent task is not evidence", queue["coverage_warning"])
+        page = self.page(f"{BASE}/rechecks")
+        self.assertIn("No recheck tasks.", page)
+        self.assertIn("an absent task is not evidence that a claim is unaffected", page)
+        self.assertIn("<code>quiet-cs</code>: baseline coverage complete, current coverage unknown",
+                      page)
+
     def test_figure_checks_end_to_end(self):
         self.assertEqual(self.load("figure"), f"{BASE}/figures")
         listing = self.page(f"{BASE}/figures")

@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from szl_forum_corpus.web import workflow_views as views
 from szl_forum_corpus.workflows import change_recheck as recheck
 from szl_forum_corpus.workflows.contracts import WorkflowError
 from szl_forum_corpus.workflows.store import Context, Store
@@ -34,6 +35,11 @@ def snapshot(snapshot_id, document, coverage="complete", **extra):
 def graph(*nodes, links=()):
     return json.dumps({"schema": "szl.research-anatomy.v1", "nodes": list(nodes),
                        "evidence_links": list(links)})
+
+
+# A claim whose only ancestor declares no artifact: comparing it with itself has no declared impact.
+QUIET = graph({"id": "q", "kind": "question", "title": "Synthetic question"},
+              {"id": "c", "kind": "claim", "title": "Synthetic claim", "depends_on": ["q"]})
 
 
 class ChangeRecheckTests(unittest.TestCase):
@@ -287,6 +293,82 @@ class ChangeRecheckTests(unittest.TestCase):
         self.change("cs1", "v1", "v2", self.expected["first"]["observed_digests"])
         self.assertEqual(self.task("cs1", "c1")["discovery_coverage"], "incomplete")
         self.assertIn("not evidence", recheck.queue_view(self.store, REVIEWER)["coverage_warning"])
+
+    # ---- coverage of change sets that create no task -----------------------------------------
+
+    def quiet_change_set(self, change_set_id, baseline, current):
+        self.register(f"{change_set_id}-old", QUIET, coverage=baseline)
+        self.register(f"{change_set_id}-new", QUIET, coverage=current)
+        return self.change(change_set_id, f"{change_set_id}-old", f"{change_set_id}-new", {},
+                           claims=["c"])
+
+    def html(self, view):
+        return views.recheck_queue(view, self.store.list(REVIEWER, recheck.SNAPSHOT), "token")
+
+    def test_incomplete_change_set_without_tasks_still_warns_in_json_and_html(self):
+        for number, (baseline, current) in enumerate((("complete", "partial"),
+                                                      ("unknown", "complete"),
+                                                      ("partial", "unknown"))):
+            with self.subTest(baseline=baseline, current=current):
+                self.directory.cleanup()
+                self.setUp()
+                outcome = self.quiet_change_set(f"cs{number}", baseline, current)
+                self.assertEqual((outcome["outcome"]["tasks"], outcome["outcome"]["report_status"]),
+                                 ([], "NO_DECLARED_IMPACT"))
+                view = recheck.queue_view(self.store, REVIEWER)
+                self.assertEqual(view["tasks"], [])
+                self.assertEqual(view["change_sets"], [f"cs{number}"])
+                self.assertEqual(view["coverage_warning"], recheck.COVERAGE_WARNING)
+                self.assertEqual(view["coverage"]["incomplete_change_sets"], [
+                    {"change_set_id": f"cs{number}", "baseline": baseline, "current": current,
+                     "tasks": 0}])
+                self.assertEqual(view["coverage"]["active_tasks_with_incomplete_discovery"], 0)
+                page = self.html(view)
+                self.assertIn("No recheck tasks.", page)
+                self.assertIn("an absent task is not evidence that a claim is unaffected", page)
+                self.assertIn(f"<code>cs{number}</code>: baseline coverage {baseline}", page)
+
+    def test_complete_change_set_without_tasks_shows_no_warning(self):
+        self.quiet_change_set("cs1", "complete", "complete")
+        view = recheck.queue_view(self.store, REVIEWER)
+        self.assertEqual((view["tasks"], view["change_sets"]), ([], ["cs1"]))
+        self.assertIsNone(view["coverage_warning"])
+        self.assertEqual(view["coverage"]["incomplete_change_sets"], [])
+        page = self.html(view)
+        self.assertIn("No recheck tasks.", page)
+        self.assertNotIn('class="notice"', page)
+        self.assertNotIn("not evidence that a claim is unaffected", page)
+
+    def test_an_earlier_incomplete_change_set_keeps_warning_after_a_complete_one(self):
+        # Policy: every recorded change set counts; a later complete comparison of other
+        # snapshots does not rediscover what the earlier partial comparison could have missed.
+        self.assertEqual(recheck.COVERAGE_POLICY, "every_recorded_change_set")
+        self.quiet_change_set("cs1", "complete", "partial")
+        self.quiet_change_set("cs2", "complete", "complete")
+        view = recheck.queue_view(self.store, REVIEWER)
+        self.assertEqual(view["change_sets"], ["cs1", "cs2"])
+        self.assertEqual([item["change_set_id"] for item in view["coverage"]["incomplete_change_sets"]],
+                         ["cs1"])
+        self.assertEqual(view["coverage_warning"], recheck.COVERAGE_WARNING)
+        self.assertEqual(view["coverage"]["policy_text"], recheck.COVERAGE_POLICY_TEXT)
+        self.assertIn("<code>cs1</code>", self.html(view))
+        self.assertNotIn("<code>cs2</code>", self.html(view))
+
+    def test_superseding_tasks_does_not_clear_an_earlier_incomplete_change_set(self):
+        self.register("v1", text("baseline.json"))
+        self.register("v2", text("current.json"), coverage="partial")
+        self.change("cs1", "v1", "v2", self.expected["first"]["observed_digests"])
+        self.register("v2c", text("current.json"))
+        self.register("v3", text("later.json"), disputed_edges=[
+            {"dependency": "d2", "dependent": "r1", "note": "batch-to-fit mapping disputed"}])
+        self.change("cs2", "v2c", "v3", self.expected["second"]["observed_digests"])
+        self.assertEqual(sorted(self.task("cs1", claim)["execution"] for claim in
+                                self.expected["first"]["task_claims"]), ["superseded"] * 4)
+        view = recheck.queue_view(self.store, REVIEWER)
+        self.assertEqual(view["coverage"]["active_tasks_with_incomplete_discovery"], 0)
+        self.assertEqual([item["change_set_id"] for item in view["coverage"]["incomplete_change_sets"]],
+                         ["cs1"])
+        self.assertEqual(view["coverage_warning"], recheck.COVERAGE_WARNING)
 
     def test_scope_roles_and_restart(self):
         self.fixtures()
