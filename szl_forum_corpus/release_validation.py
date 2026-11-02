@@ -33,6 +33,8 @@ FORGE_SYSTEM = (
 )
 FORGE_REVISION = "e29ccf6438a0af0b27c5cbcb00f547bc13205c73"
 FORGE_SHA256 = "f86ebe1fc0bd324551664356e29d7e9bb192a8b13ac01d638cd73f0a608dea20"
+FORGE_MERGED_PR = "szl-holdings/szl-forge#673"
+FORGE_MERGE_COMMIT = "972af446bc7dc6e46d397f2d0cbafb22057545b5"
 
 
 def _unique_pairs(pairs: list[tuple[str, object]]) -> dict:
@@ -201,7 +203,7 @@ def _expected_contract(rows: list[dict]) -> dict:
             "third_party_post_republication",
         ],
         "forge_disjoint_reference": {
-            "profile_state": "DRAFT_DEPENDENCY",
+            "profile_state": "MERGED_DEPENDENCY",
             "fingerprint_schema": "sha256-canonical-chat-input-v1",
             "system_message": FORGE_SYSTEM,
             "user_message_template": "{title}\\n\\n{summary}",
@@ -211,7 +213,8 @@ def _expected_contract(rows: list[dict]) -> dict:
                 "revision": FORGE_REVISION,
                 "path": "tools/validate_sft_dataset.py",
                 "sha256": FORGE_SHA256,
-                "merge_gate": "szl-holdings/szl-forge#673",
+                "merged_pr": FORGE_MERGED_PR,
+                "merge_commit": FORGE_MERGE_COMMIT,
             },
         },
         "temporal_split": {

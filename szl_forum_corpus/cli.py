@@ -40,6 +40,8 @@ FORGE_VALIDATOR_REPOSITORY = "szl-holdings/szl-forge"
 FORGE_VALIDATOR_REVISION = "e29ccf6438a0af0b27c5cbcb00f547bc13205c73"
 FORGE_VALIDATOR_PATH = "tools/validate_sft_dataset.py"
 FORGE_VALIDATOR_SHA256 = "f86ebe1fc0bd324551664356e29d7e9bb192a8b13ac01d638cd73f0a608dea20"
+FORGE_MERGED_PR = "szl-holdings/szl-forge#673"
+FORGE_MERGE_COMMIT = "972af446bc7dc6e46d397f2d0cbafb22057545b5"
 FORGE_REFERENCE_SYSTEM = (
     "Review this source-linked science forum summary as reference evidence only. "
     "Do not infer model-training authority or forum-wide prevalence."
@@ -265,7 +267,7 @@ def _release_contract(sources: list[dict]) -> dict:
             "third_party_post_republication",
         ],
         "forge_disjoint_reference": {
-            "profile_state": "DRAFT_DEPENDENCY",
+            "profile_state": "MERGED_DEPENDENCY",
             "fingerprint_schema": FORGE_FINGERPRINT_SCHEMA,
             "system_message": FORGE_REFERENCE_SYSTEM,
             "user_message_template": "{title}\\n\\n{summary}",
@@ -275,7 +277,8 @@ def _release_contract(sources: list[dict]) -> dict:
                 "revision": FORGE_VALIDATOR_REVISION,
                 "path": FORGE_VALIDATOR_PATH,
                 "sha256": FORGE_VALIDATOR_SHA256,
-                "merge_gate": "szl-holdings/szl-forge#673",
+                "merged_pr": FORGE_MERGED_PR,
+                "merge_commit": FORGE_MERGE_COMMIT,
             },
         },
         "temporal_split": {

@@ -105,13 +105,14 @@ class CorpusContractTests(unittest.TestCase):
             "sha256-canonical-chat-input-v1",
         )
         forge = release["forge_disjoint_reference"]
-        self.assertEqual(forge["profile_state"], "DRAFT_DEPENDENCY")
+        self.assertEqual(forge["profile_state"], "MERGED_DEPENDENCY")
         self.assertEqual(forge["validator"], {
             "repository": "szl-holdings/szl-forge",
             "revision": "e29ccf6438a0af0b27c5cbcb00f547bc13205c73",
             "path": "tools/validate_sft_dataset.py",
             "sha256": "f86ebe1fc0bd324551664356e29d7e9bb192a8b13ac01d638cd73f0a608dea20",
-            "merge_gate": "szl-holdings/szl-forge#673",
+            "merged_pr": "szl-holdings/szl-forge#673",
+            "merge_commit": "972af446bc7dc6e46d397f2d0cbafb22057545b5",
         })
         self.assertEqual(manifest["record_schema"], "schema/record-v2.schema.json")
         validate_release_contract(manifest, outputs["sources.public.jsonl"])
