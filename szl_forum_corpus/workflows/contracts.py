@@ -1,6 +1,6 @@
 """Strict envelopes shared by the three science workflows.
 
-Workflow records are not forum records: they never widen record-v1 rows, never carry raw forum
+Workflow records are not forum records: they never widen source-index rows, never carry raw forum
 text and never claim scientific truth. Every check here fails closed with a typed error.
 """
 

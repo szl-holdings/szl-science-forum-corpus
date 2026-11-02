@@ -4,8 +4,10 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import unicodedata
 
 from szl_forum_corpus.cli import build, main, may_publish, read_records, validate_record
+from szl_forum_corpus.release_validation import validate_release_contract
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -57,6 +59,63 @@ class CorpusContractTests(unittest.TestCase):
         self.assertEqual(shared_need["source_ids"], ["ai4science:396:1", "ai4science:426:1"])
         public_rows = [json.loads(line) for line in outputs["sources.public.jsonl"].splitlines()]
         self.assertTrue(all("attribution" not in row for row in public_rows))
+        self.assertTrue(all("source_content_license" in row for row in public_rows))
+        release = manifest["release_contract"]
+        self.assertEqual(release["schema"], "szl.forum-corpus-release/v1")
+        self.assertEqual(release["source_scope"], "reviewed_public_projection_only")
+        self.assertEqual(release["projection_license"], "Apache-2.0")
+        self.assertEqual(
+            release["projection_license_scope"],
+            "original_szl_metadata_summaries_and_annotations",
+        )
+        self.assertFalse(release["source_content_license_inferred"])
+        self.assertIn("model_training", release["excluded_purposes"])
+        self.assertEqual(release["temporal_split"]["state"], "UNKNOWN")
+        self.assertEqual(release["temporal_split"]["reason"], "NO_ADMITTED_SPLIT_MANIFEST")
+        self.assertEqual(release["temporal_split"]["records_with_unknown_event_time"], 2)
+        self.assertFalse(release["temporal_split"]["family_separation_verified"])
+        self.assertFalse(release["temporal_split"]["temporal_order_verified"])
+        bindings = {row["source_id"]: row for row in release["records"]}
+        self.assertEqual(set(bindings), {row["source_id"] for row in public_rows})
+        for row in public_rows:
+            binding = bindings[row["source_id"]]
+            encoded = (json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n").encode()
+            self.assertEqual(binding["row_sha256"], hashlib.sha256(encoded).hexdigest())
+            self.assertRegex(binding["thread_family_sha256"], r"^[0-9a-f]{64}$")
+            messages = [
+                {
+                    "role": "system",
+                    "content": release["forge_disjoint_reference"]["system_message"],
+                },
+                {"role": "user", "content": f"{row['title']}\n\n{row['summary']}"},
+            ]
+            normalized = [
+                {
+                    "role": message["role"],
+                    "content": unicodedata.normalize("NFC", message["content"]).strip(),
+                }
+                for message in messages
+            ]
+            canonical = json.dumps(
+                normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            ).encode()
+            self.assertEqual(binding["forge_input_sha256"], hashlib.sha256(canonical).hexdigest())
+        self.assertEqual(
+            release["forge_disjoint_reference"]["fingerprint_schema"],
+            "sha256-canonical-chat-input-v1",
+        )
+        forge = release["forge_disjoint_reference"]
+        self.assertEqual(forge["profile_state"], "MERGED_DEPENDENCY")
+        self.assertEqual(forge["validator"], {
+            "repository": "szl-holdings/szl-forge",
+            "revision": "e29ccf6438a0af0b27c5cbcb00f547bc13205c73",
+            "path": "tools/validate_sft_dataset.py",
+            "sha256": "f86ebe1fc0bd324551664356e29d7e9bb192a8b13ac01d638cd73f0a608dea20",
+            "merged_pr": "szl-holdings/szl-forge#673",
+            "merge_commit": "972af446bc7dc6e46d397f2d0cbafb22057545b5",
+        })
+        self.assertEqual(manifest["record_schema"], "schema/record-v2.schema.json")
+        validate_release_contract(manifest, outputs["sources.public.jsonl"])
 
     def test_unknown_rights_and_third_party_member_post_are_withheld(self):
         unknown = copy.deepcopy(self.record)
@@ -64,6 +123,7 @@ class CorpusContractTests(unittest.TestCase):
         self.assertFalse(may_publish(validate_record(unknown, 1)))
         third_party = copy.deepcopy(self.record)
         third_party["publication_rights"] = "licensed"
+        third_party["source_content_license"] = "CC-BY-4.0"
         self.assertFalse(may_publish(validate_record(third_party, 1)))
         unreviewed = copy.deepcopy(self.record)
         unreviewed["review_state"] = "unreviewed"
@@ -71,6 +131,21 @@ class CorpusContractTests(unittest.TestCase):
         outputs = build([validate_record(third_party, 1)], OPPORTUNITIES, "2026-10-02")
         self.assertEqual(outputs["sources.public.jsonl"], b"")
         self.assertEqual(json.loads(outputs["manifest.json"])["source_records_withheld"], 1)
+
+    def test_source_content_license_is_explicit_and_rights_bound(self):
+        licensed_without_id = {**self.record, "publication_rights": "licensed"}
+        with self.assertRaisesRegex(ValueError, "requires a reviewed source_content_license"):
+            validate_record(licensed_without_id, 1)
+        licensed = {**licensed_without_id, "source_content_license": "CC-BY-4.0"}
+        self.assertEqual(
+            validate_record(licensed, 1)["source_content_license"], "CC-BY-4.0"
+        )
+        with self.assertRaisesRegex(ValueError, "valid only for licensed content"):
+            validate_record({**self.record, "source_content_license": "CC-BY-4.0"}, 1)
+        with self.assertRaisesRegex(ValueError, "requires a reviewed source_content_license"):
+            validate_record(
+                {**licensed_without_id, "source_content_license": "LicenseRef-Unknown"}, 1
+            )
 
     def test_raw_text_and_sensitive_fields_are_rejected(self):
         for field in ("body", "cooked", "email", "username", "raw"):
