@@ -98,11 +98,15 @@ def validate_record(record: object, line_number: int) -> dict:
     ):
         raise ValueError(f"line {line_number}: invalid or unsafe source_url")
 
-    if record["access"] not in ACCESS or record["publication_rights"] not in RIGHTS:
+    if (
+        not isinstance(record["access"], str) or record["access"] not in ACCESS
+        or not isinstance(record["publication_rights"], str)
+        or record["publication_rights"] not in RIGHTS
+    ):
         raise ValueError(f"line {line_number}: unknown access or publication_rights")
     if type(record["public_projection_approved"]) is not bool:
         raise ValueError(f"line {line_number}: public_projection_approved must be Boolean")
-    if record["review_state"] not in REVIEW_STATES:
+    if not isinstance(record["review_state"], str) or record["review_state"] not in REVIEW_STATES:
         raise ValueError(f"line {line_number}: unknown review_state")
     title = _clean_text(record["title"], "title", 240)
     summary = _clean_text(record["summary"], "summary", 1000)
