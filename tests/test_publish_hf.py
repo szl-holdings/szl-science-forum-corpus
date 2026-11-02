@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -6,7 +7,7 @@ from types import ModuleType, SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from scripts.publish_hf import _provider_call, public_files, publish
+from scripts.publish_hf import _provider_call, _validate_public_files, public_files, publish
 
 
 SOURCE_SHA = "a" * 40
@@ -97,6 +98,50 @@ class ProviderGateTests(unittest.TestCase):
         manifest = json.loads(files["manifest.json"])
         self.assertFalse(manifest["model_training_authorized"])
         self.assertEqual(manifest["source_records_withheld"], 0)
+        _validate_public_files(files)
+
+    def test_release_contract_mutations_fail_closed(self):
+        files = public_files()
+        manifest = json.loads(files["manifest.json"])
+        sources = files["sources.public.jsonl"]
+        mutations = []
+        missing_contract = json.loads(json.dumps(manifest))
+        del missing_contract["release_contract"]
+        mutations.append(missing_contract)
+        changed_row_hash = json.loads(json.dumps(manifest))
+        changed_row_hash["release_contract"]["records"][0]["row_sha256"] = "0" * 64
+        mutations.append(changed_row_hash)
+        changed_forge_pin = json.loads(json.dumps(manifest))
+        changed_forge_pin["release_contract"]["forge_disjoint_reference"]["validator"]["sha256"] = "0" * 64
+        mutations.append(changed_forge_pin)
+        training_enabled = json.loads(json.dumps(manifest))
+        training_enabled["model_training_authorized"] = True
+        mutations.append(training_enabled)
+        for mutation in mutations:
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                payload = dict(files)
+                payload["manifest.json"] = (
+                    json.dumps(mutation, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+                ).encode("utf-8")
+                _validate_public_files(payload)
+
+        rows = [json.loads(line) for line in sources.splitlines()]
+        rows[0]["unreviewed_extra"] = "value"
+        extra_field = b"".join(
+            (json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
+            for row in rows
+        )
+        extra_manifest = json.loads(json.dumps(manifest))
+        extra_digest = hashlib.sha256(extra_field).hexdigest()
+        extra_manifest["public_source_records_sha256"] = extra_digest
+        extra_manifest["files_sha256"]["sources.public.jsonl"] = extra_digest
+        payload = dict(files)
+        payload["sources.public.jsonl"] = extra_field
+        payload["manifest.json"] = (
+            json.dumps(extra_manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+        ).encode("utf-8")
+        with self.assertRaisesRegex(ValueError, "fields differ"):
+            _validate_public_files(payload)
 
     def test_publish_rejects_wrong_commit_before_provider_import(self):
         with patch("scripts.publish_hf._local_git_sha", return_value=SOURCE_SHA):

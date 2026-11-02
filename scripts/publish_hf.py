@@ -19,11 +19,19 @@ from typing import Any, Callable
 
 from scripts.verify_projection import DATASET, ROOT, main as verify_projection
 from szl_forum_corpus.cli import may_publish, read_records
+from szl_forum_corpus.release_validation import (
+    parse_strict_json_bytes, validate_release_contract,
+)
 
 
 REPO_ID = "SZLHOLDINGS/szl-science-forum-corpus"
 SOURCE_INPUT = ROOT / "examples" / "operator_topics.jsonl"
 HEX_40 = re.compile(r"^[0-9a-f]{40}$")
+PUBLIC_FILE_NAMES = frozenset({
+    "README.md", "graph.json", "hypotheses.json", "manifest.json", "needs.json",
+    "second_brain.candidates.jsonl", "sources.public.jsonl",
+})
+GENERATED_FILE_NAMES = PUBLIC_FILE_NAMES - {"README.md", "manifest.json"}
 
 
 def _provider_call(stage: str, operation: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
@@ -36,20 +44,33 @@ def _provider_call(stage: str, operation: Callable[..., Any], *args: Any, **kwar
         raise ValueError(f"{stage}: provider {type(exc).__name__}{code}") from None
 
 
+def _validate_public_files(files: dict[str, bytes]) -> None:
+    """Validate the provider payload independently from deterministic generation."""
+    if set(files) != PUBLIC_FILE_NAMES or any(not isinstance(data, bytes) for data in files.values()):
+        raise ValueError("unexpected dataset file inventory")
+    manifest = parse_strict_json_bytes(files["manifest.json"], "manifest")
+    if not isinstance(manifest, dict):
+        raise ValueError("manifest must be an object")
+    if manifest.get("model_training_authorized") is not False:
+        raise ValueError("training authority drifted")
+    if manifest.get("source_records_withheld") != 0:
+        raise ValueError("withheld records cannot enter the Hugging Face mirror")
+    expected_hashes = {
+        name: hashlib.sha256(files[name]).hexdigest() for name in sorted(GENERATED_FILE_NAMES)
+    }
+    if manifest.get("files_sha256") != expected_hashes:
+        raise ValueError("manifest generated-file inventory or digest mismatch")
+    validate_release_contract(manifest, files["sources.public.jsonl"])
+
+
 def public_files() -> dict[str, bytes]:
     if verify_projection() != 0:
         raise ValueError("committed dataset differs from its deterministic source")
     records = read_records(SOURCE_INPUT)
     if not all(may_publish(record) for record in records):
         raise ValueError("source index includes a withheld or unreviewed record")
-    manifest = json.loads((DATASET / "manifest.json").read_text(encoding="utf-8"))
-    if manifest.get("model_training_authorized") is not False:
-        raise ValueError("training authority drifted")
-    if manifest.get("source_records_withheld") != 0:
-        raise ValueError("withheld records cannot enter the Hugging Face mirror")
     files = {path.name: path.read_bytes() for path in DATASET.iterdir() if path.is_file()}
-    if "README.md" not in files or len(files) != 7:
-        raise ValueError("unexpected dataset file inventory")
+    _validate_public_files(files)
     return files
 
 

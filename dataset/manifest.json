@@ -4,17 +4,81 @@
     "graph.json": "3a38f14889d0e9ab85ce1779f0a9b85a92a185427b89c664acbe8d83c56a1cf0",
     "hypotheses.json": "51377a42a90783b7a744fb9998b6fb24cffe517498c61854d5568adac15bff73",
     "needs.json": "9b19ceda5497003d3cb6691590e745b516993843e852d9b89dbbea2b910516ab",
-    "second_brain.candidates.jsonl": "127bcb537c141460e3b93e51939e9351eee54bd00f9348922e6683bd0ae8b2f4",
-    "sources.public.jsonl": "85c196628b64b21dab5f3ecffb466201bc57784dc4c6485c1a86cf45542b87f8"
+    "second_brain.candidates.jsonl": "03f0bc700d71e703559c9ec9149db63d9a65edb1d498128548940c07b409d1a1",
+    "sources.public.jsonl": "57a6f8daff59b92a1d22f1724e11e936955d3269446a494dfd2e00a9a6a324ce"
   },
   "forum_inventory_status": "not_established_by_this_build",
-  "generator_sha256": "7238e3fca6946db8f23798ce642ee1ff96421bcdbdbc495c9e975d59a88bfee4",
+  "generator_sha256": "1c544aaa9948374f6f70a33dd0a9157aeeefaed0b17c9f8e0bf6cd5451d6c0f9",
   "independent_public_topics": 2,
   "model_training_authorized": false,
   "opportunities_sha256": "8fb5ede904720b60a279b9f7ee4292164bbbcfc293f09901b25f3f64d287bbc7",
   "public_scope": "metadata_and_original_summaries_only",
-  "public_source_records_sha256": "85c196628b64b21dab5f3ecffb466201bc57784dc4c6485c1a86cf45542b87f8",
-  "record_schema_sha256": "2a3b13e5d1cb8ea0a628fa364e87a0f66a87982b73a2e0ffdb4ffaff4fcabff3",
+  "public_source_records_sha256": "57a6f8daff59b92a1d22f1724e11e936955d3269446a494dfd2e00a9a6a324ce",
+  "record_schema": "schema/record-v2.schema.json",
+  "record_schema_sha256": "81f4c966da90f84d4d282332a30923ebc0cb647b04704fb2e30f410ab85a4520",
+  "release_contract": {
+    "allowed_purposes": [
+      "public_metadata_index",
+      "research_hypothesis_generation"
+    ],
+    "excluded_purposes": [
+      "model_training",
+      "retrieval_benchmark",
+      "forum_prevalence_claim",
+      "third_party_post_republication"
+    ],
+    "forge_disjoint_reference": {
+      "fingerprint_schema": "sha256-canonical-chat-input-v1",
+      "profile_state": "DRAFT_DEPENDENCY",
+      "reference_only": true,
+      "system_message": "Review this source-linked science forum summary as reference evidence only. Do not infer model-training authority or forum-wide prevalence.",
+      "user_message_template": "{title}\\n\\n{summary}",
+      "validator": {
+        "merge_gate": "szl-holdings/szl-forge#673",
+        "path": "tools/validate_sft_dataset.py",
+        "repository": "szl-holdings/szl-forge",
+        "revision": "e29ccf6438a0af0b27c5cbcb00f547bc13205c73",
+        "sha256": "f86ebe1fc0bd324551664356e29d7e9bb192a8b13ac01d638cd73f0a608dea20"
+      }
+    },
+    "projection_license": "Apache-2.0",
+    "projection_license_scope": "original_szl_metadata_summaries_and_annotations",
+    "records": [
+      {
+        "forge_input_sha256": "eb54df512504af7b58b431d3ec0c6caabd4e5b0a14d7581660477a7a74417071",
+        "publication_rights": "operator_authorized",
+        "row_sha256": "67bac6c2d0363d6f631eacb47929f57d7d11e7d413870e9fe6bb33e7d4e82daa",
+        "source_content_license": null,
+        "source_id": "ai4science:396:1",
+        "thread_family_sha256": "9ca0655825a2baf52ca0c454f8d041026b7d808b53745766379447184dc97640"
+      },
+      {
+        "forge_input_sha256": "0e08ba07fe02af63b72615bd730d38743843f4a4d3918c40328b9c19762742f2",
+        "publication_rights": "operator_authorized",
+        "row_sha256": "90fbd45ead876458b9a1168f80f053b27e47e8e3c4a59922dabfa915188d1651",
+        "source_content_license": null,
+        "source_id": "ai4science:426:1",
+        "thread_family_sha256": "2e54e176e7133b574eae99a7ef6a9b11b80845b220c1c578017efd5d63b5bd91"
+      }
+    ],
+    "schema": "szl.forum-corpus-release/v1",
+    "source_content_license_inferred": false,
+    "source_scope": "reviewed_public_projection_only",
+    "temporal_split": {
+      "family_dimensions": {
+        "author": "UNKNOWN",
+        "duplicate": "UNKNOWN",
+        "paper": "UNKNOWN",
+        "thread": "MEASURED"
+      },
+      "family_separation_verified": false,
+      "reason": "NO_ADMITTED_SPLIT_MANIFEST",
+      "records_with_unknown_event_time": 2,
+      "schema": "szl-research-splits-v1",
+      "state": "UNKNOWN",
+      "temporal_order_verified": false
+    }
+  },
   "rights_basis": "per_record_assertions_no_site_wide_grant_inferred",
   "sampling": "operator_convenience_sample_not_representative",
   "schema": "szl-science-forum-corpus-v1",

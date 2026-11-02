@@ -15,13 +15,15 @@ from pathlib import Path
 import re
 import sys
 import tempfile
+import unicodedata
 from urllib.parse import urlparse
 
 
 ALLOWED_FIELDS = frozenset(
     {
         "source_id", "source_url", "topic_id", "post_number", "access",
-        "publication_rights", "rights_evidence", "public_projection_approved",
+        "publication_rights", "source_content_license", "rights_evidence",
+        "public_projection_approved",
         "title", "summary", "need_ids", "review_state", "attribution",
         "observed_at", "posted_at",
     }
@@ -32,6 +34,16 @@ SOURCE_RE = re.compile(r"^ai4science:(\d+):(\d+)$")
 REVIEW_STATES = {"unreviewed", "operator_labeled", "double_reviewed"}
 ACCESS = {"public_web", "members_only"}
 RIGHTS = {"operator_authorized", "licensed", "unknown"}
+SOURCE_CONTENT_LICENSES = {"Apache-2.0", "CC-BY-4.0", "CC-BY-SA-4.0", "CC0-1.0", "MIT"}
+FORGE_FINGERPRINT_SCHEMA = "sha256-canonical-chat-input-v1"
+FORGE_VALIDATOR_REPOSITORY = "szl-holdings/szl-forge"
+FORGE_VALIDATOR_REVISION = "e29ccf6438a0af0b27c5cbcb00f547bc13205c73"
+FORGE_VALIDATOR_PATH = "tools/validate_sft_dataset.py"
+FORGE_VALIDATOR_SHA256 = "f86ebe1fc0bd324551664356e29d7e9bb192a8b13ac01d638cd73f0a608dea20"
+FORGE_REFERENCE_SYSTEM = (
+    "Review this source-linked science forum summary as reference evidence only. "
+    "Do not infer model-training authority or forum-wide prevalence."
+)
 EMAIL_RE = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.I)
 PHONE_RE = re.compile(r"(?<![\w])\+?(?:\d[\s().-]*){10,15}(?![\w])")
 SECRET_RE = re.compile(
@@ -104,6 +116,19 @@ def validate_record(record: object, line_number: int) -> dict:
         or record["publication_rights"] not in RIGHTS
     ):
         raise ValueError(f"line {line_number}: unknown access or publication_rights")
+    source_content_license = record["source_content_license"]
+    if record["publication_rights"] == "licensed":
+        if (
+            not isinstance(source_content_license, str)
+            or source_content_license not in SOURCE_CONTENT_LICENSES
+        ):
+            raise ValueError(
+                f"line {line_number}: licensed content requires a reviewed source_content_license"
+            )
+    elif source_content_license is not None:
+        raise ValueError(
+            f"line {line_number}: source_content_license is valid only for licensed content"
+        )
     if type(record["public_projection_approved"]) is not bool:
         raise ValueError(f"line {line_number}: public_projection_approved must be Boolean")
     if not isinstance(record["review_state"], str) or record["review_state"] not in REVIEW_STATES:
@@ -146,6 +171,7 @@ def validate_record(record: object, line_number: int) -> dict:
         "title": title,
         "summary": summary,
         "rights_evidence": rights_evidence,
+        "source_content_license": source_content_license,
         "attribution": attribution,
         "observed_at": observed_at,
         "posted_at": posted_at,
@@ -192,6 +218,94 @@ def _jsonl_bytes(values: list[dict]) -> bytes:
     return ("".join(json.dumps(value, ensure_ascii=False, sort_keys=True) + "\n" for value in values)).encode("utf-8")
 
 
+def _forge_input_fingerprint(title: str, summary: str) -> str:
+    """Match szl-forge's public ``sha256-canonical-chat-input-v1`` contract."""
+    messages = [
+        {"role": "system", "content": FORGE_REFERENCE_SYSTEM},
+        {"role": "user", "content": f"{title}\n\n{summary}"},
+    ]
+    normalized = [
+        {
+            "role": message["role"],
+            "content": unicodedata.normalize(
+                "NFC", message["content"].replace("\r\n", "\n").replace("\r", "\n")
+            ).strip(),
+        }
+        for message in messages
+    ]
+    canonical = json.dumps(
+        normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def _thread_family_sha256(topic_id: int) -> str:
+    canonical = json.dumps(
+        {
+            "schema": "szl.forum-thread-family/v1",
+            "source": "ai4science.discourse.group",
+            "topic_id": topic_id,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("ascii")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def _release_contract(sources: list[dict]) -> dict:
+    return {
+        "schema": "szl.forum-corpus-release/v1",
+        "source_scope": "reviewed_public_projection_only",
+        "projection_license": "Apache-2.0",
+        "projection_license_scope": "original_szl_metadata_summaries_and_annotations",
+        "source_content_license_inferred": False,
+        "allowed_purposes": ["public_metadata_index", "research_hypothesis_generation"],
+        "excluded_purposes": [
+            "model_training", "retrieval_benchmark", "forum_prevalence_claim",
+            "third_party_post_republication",
+        ],
+        "forge_disjoint_reference": {
+            "profile_state": "DRAFT_DEPENDENCY",
+            "fingerprint_schema": FORGE_FINGERPRINT_SCHEMA,
+            "system_message": FORGE_REFERENCE_SYSTEM,
+            "user_message_template": "{title}\\n\\n{summary}",
+            "reference_only": True,
+            "validator": {
+                "repository": FORGE_VALIDATOR_REPOSITORY,
+                "revision": FORGE_VALIDATOR_REVISION,
+                "path": FORGE_VALIDATOR_PATH,
+                "sha256": FORGE_VALIDATOR_SHA256,
+                "merge_gate": "szl-holdings/szl-forge#673",
+            },
+        },
+        "temporal_split": {
+            "schema": "szl-research-splits-v1",
+            "state": "UNKNOWN",
+            "reason": "NO_ADMITTED_SPLIT_MANIFEST",
+            "family_separation_verified": False,
+            "temporal_order_verified": False,
+            "records_with_unknown_event_time": sum(row["posted_at"] is None for row in sources),
+            "family_dimensions": {
+                "thread": "MEASURED",
+                "author": "UNKNOWN",
+                "paper": "UNKNOWN",
+                "duplicate": "UNKNOWN",
+            },
+        },
+        "records": [
+            {
+                "source_id": row["source_id"],
+                "row_sha256": hashlib.sha256(_jsonl_bytes([row])).hexdigest(),
+                "thread_family_sha256": _thread_family_sha256(row["topic_id"]),
+                "forge_input_sha256": _forge_input_fingerprint(row["title"], row["summary"]),
+                "publication_rights": row["publication_rights"],
+                "source_content_license": row["source_content_license"],
+            }
+            for row in sources
+        ],
+    }
+
+
 def _load_opportunities(path: Path) -> list[dict]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, list) or not value:
@@ -233,6 +347,7 @@ def build(records: list[dict], opportunities: list[dict], as_of: str) -> dict[st
             "observed_at": r["observed_at"],
             "posted_at": r["posted_at"],
             "publication_rights": r["publication_rights"],
+            "source_content_license": r["source_content_license"],
             "rights_evidence": r["rights_evidence"],
         }
         for r in approved
@@ -306,12 +421,14 @@ def build(records: list[dict], opportunities: list[dict], as_of: str) -> dict[st
             "text": r["summary"],
             "sha256": hashlib.sha256(r["summary"].encode("utf-8")).hexdigest(),
             "rightsEvidence": r["rights_evidence"],
+            "sourceContentLicense": r["source_content_license"],
             "reviewState": r["review_state"],
         }
         for r in sources
     ])
     manifest = {
         "schema": "szl-science-forum-corpus-v1",
+        "record_schema": "schema/record-v2.schema.json",
         "as_of": as_of,
         "source_records_seen": len(records),
         "source_records_public": len(approved),
@@ -322,11 +439,12 @@ def build(records: list[dict], opportunities: list[dict], as_of: str) -> dict[st
         "source_revision_status": "not_recorded_in_public_pilot",
         "public_scope": "metadata_and_original_summaries_only",
         "rights_basis": "per_record_assertions_no_site_wide_grant_inferred",
+        "release_contract": _release_contract(sources),
         "public_source_records_sha256": public_records_sha256,
         "opportunities_sha256": opportunities_sha256,
         "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "record_schema_sha256": hashlib.sha256(
-            (Path(__file__).resolve().parents[1] / "schema" / "record-v1.schema.json").read_bytes()
+            (Path(__file__).resolve().parents[1] / "schema" / "record-v2.schema.json").read_bytes()
         ).hexdigest(),
         "model_training_authorized": False,
         "files_sha256": {name: hashlib.sha256(data).hexdigest() for name, data in sorted(files.items())},
