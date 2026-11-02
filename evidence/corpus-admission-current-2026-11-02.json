@@ -1,0 +1,213 @@
+{
+  "admission_passed": false,
+  "checks": [
+    {
+      "expected": "6d086cee49703afc817baa58df4c0c59119518786be72628036f12054cc1ae00",
+      "name": "dataset.manifest_pin",
+      "observed": "6d086cee49703afc817baa58df4c0c59119518786be72628036f12054cc1ae00",
+      "required": true,
+      "state": "OBSERVED"
+    },
+    {
+      "expected": "independently reconstructed szl.forum-corpus-release/v1",
+      "name": "dataset.release_contract",
+      "observed": "MATCHED",
+      "required": true,
+      "state": "OBSERVED"
+    },
+    {
+      "expected": 0,
+      "name": "duplicates.exact_forge_input",
+      "observed": 0,
+      "required": true,
+      "state": "OBSERVED"
+    },
+    {
+      "expected": "separately reviewed semantic duplicate receipt",
+      "name": "duplicates.semantic_or_paraphrase",
+      "observed": null,
+      "required": false,
+      "state": "UNKNOWN"
+    },
+    {
+      "expected": "model-specific contamination assessment",
+      "name": "leakage.pretraining_contamination",
+      "observed": null,
+      "required": false,
+      "state": "UNKNOWN"
+    },
+    {
+      "expected": "complete_revision_bound",
+      "name": "provenance.forum_inventory",
+      "observed": "not_established_by_this_build",
+      "required": true,
+      "state": "UNKNOWN"
+    },
+    {
+      "expected": "exact_post_revisions_recorded",
+      "name": "provenance.source_revisions",
+      "observed": "not_recorded_in_public_pilot",
+      "required": true,
+      "state": "UNKNOWN"
+    },
+    {
+      "expected": "model_training allowed and not excluded",
+      "name": "rights.allowed_purpose",
+      "observed": {
+        "allowed": [
+          "public_metadata_index",
+          "research_hypothesis_generation"
+        ],
+        "excluded": [
+          "model_training",
+          "retrieval_benchmark",
+          "forum_prevalence_claim",
+          "third_party_post_republication"
+        ]
+      },
+      "required": true,
+      "state": "INVALID"
+    },
+    {
+      "expected": true,
+      "name": "rights.model_training_authorized",
+      "observed": false,
+      "required": true,
+      "state": "INVALID"
+    },
+    {
+      "expected": {
+        "evidence_sha256": "exact external rights evidence digest",
+        "purpose": "model_training",
+        "record_source_ids_sha256": "621b939432975bb043083b27d98936fd619746d0f98a3dbc8c64d1a3fe672314",
+        "state": "GRANTED"
+      },
+      "name": "rights.record_scope",
+      "observed": null,
+      "required": true,
+      "state": "UNKNOWN"
+    },
+    {
+      "expected": "MEASURED SOURCE_METADATA audit",
+      "name": "split.family_and_time_audit",
+      "observed": null,
+      "required": true,
+      "state": "UNKNOWN"
+    },
+    {
+      "expected": "exact SHA-256-bound szl-research-splits-v1 input",
+      "name": "split.manifest_pin",
+      "observed": null,
+      "required": true,
+      "state": "UNKNOWN"
+    },
+    {
+      "expected": {
+        "development": 20,
+        "discovery": 60,
+        "held_out": 20
+      },
+      "name": "split.minimum_counts",
+      "observed": null,
+      "required": true,
+      "state": "UNKNOWN"
+    },
+    {
+      "expected": "record-level binding for every public source row",
+      "name": "split.record_coverage",
+      "observed": null,
+      "required": true,
+      "state": "UNKNOWN"
+    },
+    {
+      "expected": "same exact split SHA-256 as a reviewed baseline",
+      "name": "split.stability",
+      "observed": null,
+      "required": true,
+      "state": "UNKNOWN"
+    },
+    {
+      "expected": {
+        "minimum": 50
+      },
+      "name": "threshold.independent_topics",
+      "observed": 2,
+      "required": true,
+      "state": "INVALID"
+    },
+    {
+      "expected": {
+        "minimum": 100
+      },
+      "name": "threshold.public_records",
+      "observed": 2,
+      "required": true,
+      "state": "INVALID"
+    }
+  ],
+  "counts": {
+    "independent_topics": 2,
+    "public_records": 2
+  },
+  "errors": [
+    "MINIMUM_INDEPENDENT_TOPICS_NOT_MET",
+    "MINIMUM_PUBLIC_RECORDS_NOT_MET",
+    "MODEL_TRAINING_EXPLICITLY_EXCLUDED",
+    "MODEL_TRAINING_NOT_AUTHORIZED"
+  ],
+  "harness_sha256": "51d394a9ea081fedda55fea2ebfa07a96ef44e9343406a98891afbba351ce290",
+  "inputs": {
+    "dataset_manifest_sha256": "6d086cee49703afc817baa58df4c0c59119518786be72628036f12054cc1ae00",
+    "declared_dataset_manifest_sha256": "6d086cee49703afc817baa58df4c0c59119518786be72628036f12054cc1ae00",
+    "public_source_projection_sha256": "57a6f8daff59b92a1d22f1724e11e936955d3269446a494dfd2e00a9a6a324ce",
+    "split_manifest_sha256": null
+  },
+  "policy": {
+    "boundary": "operational floor only; an observed receipt is not scientific sufficiency, training approval, or execution authority",
+    "contract_references": {
+      "chaskallm": {
+        "path": "chaskallm_ops/corpus_admission.py",
+        "repository": "szl-holdings/ChaskaLLM",
+        "revision": "c8d08e1760923705a1e5d5e52dc6b12c60e1d128",
+        "role": "reference_only_fail_closed_consumer",
+        "sha256": "0b8ce4a5dcdbc51da591f50c9c33791a69009266dd1b599413683d35cbb3a66a"
+      },
+      "forge": {
+        "merge_commit": "972af446bc7dc6e46d397f2d0cbafb22057545b5",
+        "path": "tools/validate_sft_dataset.py",
+        "repository": "szl-holdings/szl-forge",
+        "revision": "e29ccf6438a0af0b27c5cbcb00f547bc13205c73",
+        "role": "reference_only_exact_input_overlap",
+        "sha256": "f86ebe1fc0bd324551664356e29d7e9bb192a8b13ac01d638cd73f0a608dea20"
+      }
+    },
+    "maximum_public_records": 100000,
+    "minimum_independent_topics": 50,
+    "minimum_public_records": 100,
+    "minimum_split_records": {
+      "development": 20,
+      "discovery": 60,
+      "held_out": 20
+    },
+    "purpose": "model_training_candidate_review",
+    "require_explicit_training_rights_scope": true,
+    "require_record_level_split_binding": true,
+    "require_stable_split_baseline": true,
+    "required_forum_inventory_status": "complete_revision_bound",
+    "required_source_revision_status": "exact_post_revisions_recorded",
+    "schema": "szl.forum-corpus-admission-policy/v1"
+  },
+  "policy_sha256": "14981851e9db3d5bf9b37e4134b02fabbf3358f0f63789b0e51bb4450d327a25",
+  "receipt_sha256": "fd64b369a60366389a7728e4906302eaf58884453be7c8b50f1b83e75ce28668",
+  "schema": "szl.forum-corpus-admission/v1",
+  "scope": {
+    "execution_authority": false,
+    "forum_network_access": false,
+    "model_published": false,
+    "model_training_executed": false,
+    "provider_write": false,
+    "scientific_sufficiency_claimed": false,
+    "source_payloads_in_receipt": false
+  },
+  "state": "INVALID"
+}

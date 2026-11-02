@@ -41,6 +41,15 @@ held-out splits. It also checks strict time ordering and preserves unknown
 metadata. Original synthetic examples demonstrate both a clean declaration and
 a transitive leakage failure; they do not qualify a research corpus.
 
+The [corpus admission composer](docs/CORPUS_ADMISSION.md) binds the exact public
+release, rights boundary, Forge input fingerprints, evidence minimums, and an
+optional split audit into one deterministic receipt. The committed two-topic
+pilot is `INVALID` for model-training review: training is explicitly excluded,
+record-scoped training rights are absent, the operational evidence floors are
+not met, and no revision-bound source inventory or admitted split exists. The
+receipt records the missing evidence as `UNKNOWN` instead of inferring it. It
+does not train, publish, deploy, or grant execution authority.
+
 [Corpus automation](docs/CORPUS_AUTOMATION.md) publishes the reviewed projection
 after owner-merged source changes and independently checks the seven GitHub/Hub
 files after publication and daily. It preserves source/provider revision receipts,
