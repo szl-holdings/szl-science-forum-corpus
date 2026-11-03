@@ -50,7 +50,7 @@ Run the committed pilot check from the repository root:
 
 ```powershell
 python -B -m szl_forum_corpus.admission dataset `
-  --manifest-sha256 6d086cee49703afc817baa58df4c0c59119518786be72628036f12054cc1ae00 `
+  --manifest-sha256 b3a9ac76869f6b55c93dacb7d56278b80e97aa23b7abdbdc8c1afe1a39e03ee9 `
   --out build/corpus-admission.json
 ```
 

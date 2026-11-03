@@ -1,0 +1,29 @@
+[
+  {
+    "id": "experiment-contract",
+    "need_ids": ["experiment_design", "blocked_allocation"],
+    "baseline": "Researcher completes a structured protocol template without the skill.",
+    "intervention": "A skill drafts variables, controls, measurement, falsifier, assumptions, and the cheapest discriminating next test.",
+    "primary_outcome": "Share of independently reviewed plans meeting every preregistered actionability criterion.",
+    "failure_condition": "No improvement over the template on a sealed set, or any unsupported claim that a proposed experiment was performed.",
+    "status": "proposal"
+  },
+  {
+    "id": "evidence-adjudication",
+    "need_ids": ["evidence_provenance", "skill_import_provenance"],
+    "baseline": "Researcher uses ordinary search and a citation checklist.",
+    "intervention": "A skill distinguishes support, contradiction, insufficient evidence, and outdated evidence using versioned, licensed primary sources.",
+    "primary_outcome": "Blinded accuracy of the four-way decision and citation characterization.",
+    "failure_condition": "Invented citations, concealed uncertainty, or no improvement over search on sealed cases.",
+    "status": "proposal"
+  },
+  {
+    "id": "reproduction-triage",
+    "need_ids": ["artifact_replay", "measurement_harmonization"],
+    "baseline": "Researcher follows an existing reproduction checklist.",
+    "intervention": "A skill ranks data, environment, code, and reported-result discrepancies for authorized local checks.",
+    "primary_outcome": "Time to a researcher-verified first cause on a held-out reproduction package.",
+    "failure_condition": "Unauthorized execution or no reduction in verification time.",
+    "status": "proposal"
+  }
+]

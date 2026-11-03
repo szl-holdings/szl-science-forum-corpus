@@ -69,3 +69,5 @@ jobs:
           python-version: "3.12"
       - name: Build, install outside the checkout and load the bundled fixtures
         run: python -B tests/installed_wheel_acceptance.py
+      - name: Build, inspect and run the corpus CLI from an isolated wheel install
+        run: python -B tests/installed_corpus_acceptance.py
