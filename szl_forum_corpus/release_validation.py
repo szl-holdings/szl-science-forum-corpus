@@ -20,7 +20,7 @@ PUBLIC_FIELDS = frozenset({
     "need_ids", "review_state", "observed_at", "posted_at", "publication_rights",
     "source_content_license", "rights_evidence",
 })
-SOURCE_ID = re.compile(r"^ai4science:(\d+):(\d+)$")
+SOURCE_ID = re.compile(r"^ai4science:([1-9][0-9]*):([1-9][0-9]*)$")
 NEED_ID = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
 SOURCE_LICENSES = frozenset({
     "Apache-2.0", "CC-BY-4.0", "CC-BY-SA-4.0", "CC0-1.0", "MIT",

@@ -2,9 +2,9 @@
   "admission_passed": false,
   "checks": [
     {
-      "expected": "6d086cee49703afc817baa58df4c0c59119518786be72628036f12054cc1ae00",
+      "expected": "b3a9ac76869f6b55c93dacb7d56278b80e97aa23b7abdbdc8c1afe1a39e03ee9",
       "name": "dataset.manifest_pin",
-      "observed": "6d086cee49703afc817baa58df4c0c59119518786be72628036f12054cc1ae00",
+      "observed": "b3a9ac76869f6b55c93dacb7d56278b80e97aa23b7abdbdc8c1afe1a39e03ee9",
       "required": true,
       "state": "OBSERVED"
     },
@@ -157,8 +157,8 @@
   ],
   "harness_sha256": "51d394a9ea081fedda55fea2ebfa07a96ef44e9343406a98891afbba351ce290",
   "inputs": {
-    "dataset_manifest_sha256": "6d086cee49703afc817baa58df4c0c59119518786be72628036f12054cc1ae00",
-    "declared_dataset_manifest_sha256": "6d086cee49703afc817baa58df4c0c59119518786be72628036f12054cc1ae00",
+    "dataset_manifest_sha256": "b3a9ac76869f6b55c93dacb7d56278b80e97aa23b7abdbdc8c1afe1a39e03ee9",
+    "declared_dataset_manifest_sha256": "b3a9ac76869f6b55c93dacb7d56278b80e97aa23b7abdbdc8c1afe1a39e03ee9",
     "public_source_projection_sha256": "57a6f8daff59b92a1d22f1724e11e936955d3269446a494dfd2e00a9a6a324ce",
     "split_manifest_sha256": null
   },
@@ -198,7 +198,7 @@
     "schema": "szl.forum-corpus-admission-policy/v1"
   },
   "policy_sha256": "14981851e9db3d5bf9b37e4134b02fabbf3358f0f63789b0e51bb4450d327a25",
-  "receipt_sha256": "fd64b369a60366389a7728e4906302eaf58884453be7c8b50f1b83e75ce28668",
+  "receipt_sha256": "963e1ec140c505268a6113204075b64307566fae610e397283b1199a16e86cdd",
   "schema": "szl.forum-corpus-admission/v1",
   "scope": {
     "execution_authority": false,

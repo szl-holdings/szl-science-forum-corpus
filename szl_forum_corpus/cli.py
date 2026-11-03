@@ -10,6 +10,8 @@ import argparse
 from collections import defaultdict
 from datetime import date
 import hashlib
+from importlib import resources
+from importlib.resources.abc import Traversable
 import json
 from pathlib import Path
 import re
@@ -30,7 +32,7 @@ ALLOWED_FIELDS = frozenset(
 )
 REQUIRED_FIELDS = ALLOWED_FIELDS
 NEED_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
-SOURCE_RE = re.compile(r"^ai4science:(\d+):(\d+)$")
+SOURCE_RE = re.compile(r"^ai4science:([1-9][0-9]*):([1-9][0-9]*)$")
 REVIEW_STATES = {"unreviewed", "operator_labeled", "double_reviewed"}
 ACCESS = {"public_web", "members_only"}
 RIGHTS = {"operator_authorized", "licensed", "unknown"}
@@ -309,7 +311,7 @@ def _release_contract(sources: list[dict]) -> dict:
     }
 
 
-def _load_opportunities(path: Path) -> list[dict]:
+def _load_opportunities(path: Traversable) -> list[dict]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, list) or not value:
         raise ValueError("opportunities must be a nonempty JSON list")
@@ -447,7 +449,7 @@ def build(records: list[dict], opportunities: list[dict], as_of: str) -> dict[st
         "opportunities_sha256": opportunities_sha256,
         "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "record_schema_sha256": hashlib.sha256(
-            (Path(__file__).resolve().parents[1] / "schema" / "record-v2.schema.json").read_bytes()
+            resources.files("szl_forum_corpus").joinpath("data", "record-v2.schema.json").read_bytes()
         ).hexdigest(),
         "model_training_authorized": False,
         "files_sha256": {name: hashlib.sha256(data).hexdigest() for name, data in sorted(files.items())},
@@ -465,7 +467,7 @@ def main(argv: list[str] | None = None) -> int:
     build_parser.add_argument("input", type=Path)
     build_parser.add_argument("--out", type=Path, required=True)
     build_parser.add_argument("--as-of", required=True)
-    build_parser.add_argument("--opportunities", type=Path, default=Path(__file__).resolve().parents[1] / "opportunities.json")
+    build_parser.add_argument("--opportunities", type=Path)
     args = parser.parse_args(argv)
     try:
         records = read_records(args.input)
@@ -478,7 +480,11 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.out.exists():
             raise ValueError(f"output already exists: {args.out}")
-        opportunities = _load_opportunities(args.opportunities)
+        opportunities = _load_opportunities(
+            args.opportunities
+            if args.opportunities is not None
+            else resources.files("szl_forum_corpus").joinpath("data", "opportunities.json")
+        )
         files = build(records, opportunities, args.as_of)
         args.out.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix=".szl-forum-build-", dir=args.out.parent) as temporary:
