@@ -27,6 +27,25 @@ corpus. Those actions have separate source and promotion boundaries. Main-branch
 changes that do not affect the publisher's path filters do not create a new Hub
 commit.
 
+## Publisher credential and recovery
+
+Only the main-branch `publish` job receives the `HF_TOKEN` Actions secret, which
+needs write access to `SZLHOLDINGS/szl-science-forum-corpus`. PR preflights and
+the alignment workflow never receive it. If the secret is absent, the job stops
+after the offline preflight with `HF_TOKEN is unavailable`, before importing the
+provider client or making any provider call, so the Hub keeps its previous
+revision. The alignment audit can still report `ALIGNED` while no reviewed byte
+has changed; a red publisher run then means future publication is blocked, not
+that the mirror has drifted.
+
+Restoring the secret is an owner action in the repository settings. Afterwards,
+dispatch the publisher for the exact current `main` commit, for example
+`gh workflow run publish-hf-dataset.yml --ref main -f expected_git_sha=<current main SHA>`.
+This performs a provider write when the projection differs and a read-back in every
+case. Dependabot updates to `.github/workflows/publish-hf-dataset.yml` match the
+publisher's path filter, so they also run the publisher; with an unchanged
+projection the expected result is `UNCHANGED_AND_READ_BACK`.
+
 ## Detect drift after publication
 
 The alignment workflow also runs daily at 04:23 UTC and supports manual dispatch.

@@ -66,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
         source = work / "src"
         shutil.copytree(ROOT / "szl_forum_corpus", source / "szl_forum_corpus",
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
-        for name in ("pyproject.toml", "LICENSE", "README.md"):
+        for name in ("pyproject.toml", "LICENSE", "NOTICE", "README.md"):
             shutil.copy2(ROOT / name, source / name)
         command = [
             sys.executable, "-m", "pip", "wheel", "--no-deps", "--no-cache-dir",

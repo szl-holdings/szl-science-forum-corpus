@@ -1,0 +1,13 @@
+SZL Science Forum Corpus
+Copyright (c) 2026 SZL Holdings. Licensed under the Apache License, Version 2.0.
+
+The Apache-2.0 license covers this repository's original code, documentation,
+summaries and annotations. It grants no license to any linked forum post or
+third-party dataset: a record's source_content_license applies only to the linked
+source content, and null makes no source-content license claim.
+
+szl_forum_corpus/kernels/ contains byte-identical copies of three SZL Skills
+kernels from szl-holdings/szl-skills at commit
+3e1f02c137c1e8da4ab0f78196bfa55dc7263984 (Apache-2.0). Their upstream paths and
+SHA-256 pins are in szl_forum_corpus/kernels/SOURCES.json; see also
+szl_forum_corpus/kernels/NOTICE.
