@@ -111,3 +111,5 @@ The three initial experiments are an experiment-contract skill, evidence adjudic
 The [Discourse API documentation](https://docs.discourse.org/) describes supported topic and category pagination. [W3C PROV](https://www.w3.org/TR/prov-o/) supplies the provenance vocabulary, and [Datasheets for Datasets](https://arxiv.org/abs/1803.09010) motivates explicit collection and intended-use documentation. Neither technical access nor robots.txt establishes a content license.
 
 The Apache-2.0 [LICENSE](LICENSE) covers this repository's original code, documentation, summaries, and annotations. A row's `source_content_license` applies only to the linked source content; `null` makes no source-content license claim. Apache-2.0 does **not** grant a license to any linked forum post or third-party dataset.
+
+Estate on Hugging Face: models, datasets and Spaces are published under the [SZLHOLDINGS](https://huggingface.co/SZLHOLDINGS) org.
