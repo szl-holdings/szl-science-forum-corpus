@@ -1,14 +1,44 @@
 [build-system]
-requires = ["setuptools>=68"]
+# setuptools 77 is the first release that accepts an SPDX `license` string (PEP 639); the
+# `license = {text = ...}` table it replaces is deprecated and scheduled for removal.
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "szl-science-forum-corpus"
 version = "0.1.0"
 description = "Provenance-aware, rights-gated science forum insight index"
+readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 authors = [{name = "SZL Holdings"}]
+keywords = ["provenance", "rights-gated", "research-protocol", "science-workflows", "dataset"]
+# Operating systems and Python versions are the ones .github/workflows/ci.yml actually tests.
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering",
+]
+
+[project.optional-dependencies]
+# The suite is standard-library unittest and needs no third-party packages; the empty extra keeps
+# the estate-wide `pip install -e '.[test]'` command valid.
+test = []
+
+[project.urls]
+Homepage = "https://github.com/szl-holdings/szl-science-forum-corpus"
+Source = "https://github.com/szl-holdings/szl-science-forum-corpus"
+Issues = "https://github.com/szl-holdings/szl-science-forum-corpus/issues"
+Dataset = "https://huggingface.co/datasets/SZLHOLDINGS/szl-science-forum-corpus"
 
 [tool.setuptools.packages.find]
 where = ["."]

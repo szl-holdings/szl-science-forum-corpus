@@ -5,3 +5,5 @@
 *.tmp
 /.restricted/
 /import-state/
+/dist/
+/*.egg-info/

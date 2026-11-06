@@ -51,7 +51,8 @@ FIXTURE_FILES = (
 )
 KERNEL_FILES = ("SOURCES.json", "NOTICE", "paper_rescue.py", "research_change_impact.py",
                 "figure_data_contract.py")
-BUILD_INPUTS = ("pyproject.toml", "LICENSE", "README.md", "setup.py", "setup.cfg", "MANIFEST.in")
+BUILD_INPUTS = ("pyproject.toml", "LICENSE", "NOTICE", "README.md", "setup.py", "setup.cfg",
+                "MANIFEST.in")
 
 
 # ---- probe (runs inside the installed environment) -----------------------------------------------
