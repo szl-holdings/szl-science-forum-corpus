@@ -1,5 +1,6 @@
 """Build 3: bounded canonical CSV-to-SVG figure package checks."""
 
+from contextlib import closing
 import itertools
 import json
 import re
@@ -212,7 +213,7 @@ class FigureCheckTests(unittest.TestCase):
         with self.assertRaises(WorkflowError) as caught:
             figures.register_bundle(self.store, OPERATOR, request_id, payload)
         self.assertEqual(caught.exception.code, "INVALID_INPUT")
-        with sqlite3.connect(self.store.path) as connection:
+        with closing(sqlite3.connect(self.store.path)) as connection:
             for table in ("blobs", "resources", "events", "requests"):
                 self.assertEqual(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0], 0)
         # Refused input must not consume either identifier: corrected bytes can be retried.
