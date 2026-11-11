@@ -9,6 +9,7 @@ not scientific verification, journal compliance or publication approval.
 
 from __future__ import annotations
 
+import csv
 from decimal import localcontext
 import xml.etree.ElementTree as ET
 
@@ -92,7 +93,7 @@ def _contract_state(kernel, members: dict[str, bytes]) -> tuple[str, dict | None
         if error.status == "MISMATCH":
             return "CAPTION_MISMATCH", None, str(error)
         fail("INVALID_INPUT", f"figure-data contract refused the input: {error}", "members")
-    except (UnicodeError, ValueError, TypeError, KeyError, RecursionError) as error:
+    except (csv.Error, UnicodeError, ValueError, TypeError, KeyError, RecursionError) as error:
         fail("INVALID_INPUT", f"figure-data contract refused the input: {type(error).__name__}",
              "members")
     return "LOADED", summary, None
