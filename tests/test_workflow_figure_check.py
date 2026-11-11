@@ -3,6 +3,7 @@
 import itertools
 import json
 import re
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -203,6 +204,30 @@ class FigureCheckTests(unittest.TestCase):
                 with self.assertRaises(WorkflowError):
                     self.register(bundle_id, member_list)
         self.assertEqual(self.store.list(OPERATOR, figures.BUNDLE), [])
+
+    def assert_csv_refused_without_writes(self, data):
+        request_id = self.rid()
+        payload = {"bundle_id": "csv-retry", "evidence_kind": "synthetic",
+                   "provenance": "offline parser regression", "members": members(data=data)}
+        with self.assertRaises(WorkflowError) as caught:
+            figures.register_bundle(self.store, OPERATOR, request_id, payload)
+        self.assertEqual(caught.exception.code, "INVALID_INPUT")
+        with sqlite3.connect(self.store.path) as connection:
+            for table in ("blobs", "resources", "events", "requests"):
+                self.assertEqual(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0], 0)
+        # Refused input must not consume either identifier: corrected bytes can be retried.
+        payload["members"] = members()
+        figures.register_bundle(self.store, OPERATOR, request_id, payload)
+        self.assertEqual(self.bundle("csv-retry")["contract_state"], "LOADED")
+
+    def test_unterminated_csv_quote_is_invalid_input(self):
+        self.assert_csv_refused_without_writes('sample_id,dose_mg,response\n"unterminated,0,1.2\n')
+
+    def test_text_after_csv_quote_is_invalid_input(self):
+        self.assert_csv_refused_without_writes('sample_id,dose_mg,response\n"s1"x,0,1.2\n')
+
+    def test_csv_field_over_parser_limit_is_invalid_input(self):
+        self.assert_csv_refused_without_writes('sample_id,dose_mg,response\n' + 'a' * 140000 + ',0,1.2\n')
 
     def test_missing_duplicate_and_unknown_members_are_refused(self):
         base = members()
