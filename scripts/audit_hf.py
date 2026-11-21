@@ -133,7 +133,28 @@ def main(argv: list[str] | None = None) -> int:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         with args.out.open("xb") as stream:
             stream.write((json.dumps(receipt, indent=2, sort_keys=True) + "\n").encode())
-        print(json.dumps({key: receipt[key] for key in ("state", "source_git_sha", "hf_revision", "head_stable")}, sort_keys=True))
+        # Surface only fixed public projection names and audit-owned status labels.
+        # Provider bodies, exception messages and unexpected file names never enter stdout.
+        public_summary = {
+            key: receipt[key]
+            for key in ("state", "source_git_sha", "hf_revision", "head_stable")
+        }
+        reasons = {
+            "PINNED_REVISION_MISMATCH", "PROVIDER_HEAD_OR_INVENTORY_CHANGED",
+            "PUBLIC_PROJECTION_DIFFERS", "EXACT_BYTES_AND_STABLE_HEAD",
+            "PROVIDER_READ_FAILED",
+        }
+        if receipt.get("reason") in reasons:
+            public_summary["reason"] = receipt["reason"]
+        for key in ("missing_files", "mismatched_files"):
+            public_summary[key] = sorted(name for name in receipt[key] if name in FILES)
+        public_summary["unexpected_file_count"] = receipt["unexpected_file_count"]
+        if receipt.get("failed_stage") in {"info_before", "info_pinned", "file_read", "info_after"}:
+            public_summary["failed_stage"] = receipt["failed_stage"]
+        status = receipt.get("http_status")
+        if type(status) is int and 100 <= status <= 599:
+            public_summary["http_status"] = status
+        print(json.dumps(public_summary, sort_keys=True))
         return 0 if receipt["state"] == "ALIGNED" else 1
     except Exception:
         print("ERROR: alignment audit rejected source or could not create a new receipt", file=sys.stderr)
