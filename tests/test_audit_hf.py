@@ -152,6 +152,70 @@ class AlignmentAuditTests(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, "exact Git source bytes"):
                         source_files(SOURCE_SHA)
 
+    def test_cli_prints_bounded_public_drift_diagnostics(self):
+        self.provider.files["README.md"] = SECRET.encode()
+        self.provider.info["siblings"].append({"rfilename": SECRET})
+        receipt = self.audit()
+        output = io.StringIO()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "receipt.json"
+            with patch("scripts.audit_hf.source_files", return_value=self.files), patch(
+                "scripts.audit_hf.audit_alignment", return_value=receipt
+            ):
+                with contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
+                    self.assertEqual(main(["--expected-sha", SOURCE_SHA, "--out", str(path)]), 1)
+        summary = json.loads(output.getvalue())
+        self.assertEqual(summary["state"], "DRIFT")
+        self.assertEqual(summary["reason"], "PUBLIC_PROJECTION_DIFFERS")
+        self.assertEqual(summary["mismatched_files"], ["README.md"])
+        self.assertEqual(summary["missing_files"], [])
+        self.assertEqual(summary["unexpected_file_count"], 1)
+        self.assertNotIn(SECRET, output.getvalue())
+        self.assertNotIn("observed_files_sha256", summary)
+
+    def test_cli_unavailable_reports_only_allowlisted_stage_and_http_status(self):
+        def failed(url, limit):
+            raise HTTPError(url, 429, SECRET, None, None)
+
+        receipt = audit_alignment(self.files, SOURCE_SHA, failed)
+        output = io.StringIO()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "receipt.json"
+            with patch("scripts.audit_hf.source_files", return_value=self.files), patch(
+                "scripts.audit_hf.audit_alignment", return_value=receipt
+            ):
+                with contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
+                    self.assertEqual(main(["--expected-sha", SOURCE_SHA, "--out", str(path)]), 1)
+        summary = json.loads(output.getvalue())
+        self.assertEqual(summary["state"], "UNAVAILABLE")
+        self.assertEqual(summary["reason"], "PROVIDER_READ_FAILED")
+        self.assertEqual(summary["failed_stage"], "info_before")
+        self.assertEqual(summary["http_status"], 429)
+        self.assertEqual(summary["mismatched_files"], [])
+        self.assertNotIn(SECRET, output.getvalue())
+
+    def test_cli_drops_unrecognized_diagnostic_values_from_summary(self):
+        receipt = self.audit()
+        receipt.update(
+            reason=SECRET, failed_stage=SECRET, http_status=True,
+            missing_files=[SECRET], mismatched_files=[SECRET],
+        )
+        output = io.StringIO()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "receipt.json"
+            with patch("scripts.audit_hf.source_files", return_value=self.files), patch(
+                "scripts.audit_hf.audit_alignment", return_value=receipt
+            ):
+                with contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
+                    self.assertEqual(main(["--expected-sha", SOURCE_SHA, "--out", str(path)]), 0)
+        summary = json.loads(output.getvalue())
+        self.assertNotIn("reason", summary)
+        self.assertNotIn("failed_stage", summary)
+        self.assertNotIn("http_status", summary)
+        self.assertEqual(summary["missing_files"], [])
+        self.assertEqual(summary["mismatched_files"], [])
+        self.assertNotIn(SECRET, output.getvalue())
+
     def test_cli_writes_nonzero_drift_receipt_and_refuses_overwrite(self):
         self.provider.files["README.md"] = b"drift"
         receipt = self.audit()
