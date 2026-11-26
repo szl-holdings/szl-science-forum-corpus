@@ -92,7 +92,7 @@ class ProviderGateTests(unittest.TestCase):
 
     def test_offline_preflight_has_only_reviewed_metadata(self):
         files = public_files()
-        self.assertEqual(len(files), 7)
+        self.assertEqual(len(files), 9)
         self.assertIn("README.md", files)
         self.assertNotIn(b"Following my earlier", files["sources.public.jsonl"])
         manifest = json.loads(files["manifest.json"])

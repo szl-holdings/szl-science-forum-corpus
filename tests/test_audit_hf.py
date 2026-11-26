@@ -57,7 +57,7 @@ class AlignmentAuditTests(unittest.TestCase):
         self.assertEqual(receipt["source_git_sha"], SOURCE_SHA)
         self.assertTrue(receipt["head_stable"])
         self.assertEqual(receipt["files_sha256"], receipt["observed_files_sha256"])
-        self.assertEqual(len(self.provider.calls), 10)
+        self.assertEqual(len(self.provider.calls), 12)
         self.assertFalse(receipt["provider_writes"])
         self.assertFalse(receipt["model_training_authorized"])
 

@@ -12,14 +12,14 @@ workflows. Lambda remains Conjecture 1 (OPEN).
 2. After the owner merges changes to `main`, the existing publisher runs
    automatically for the listed source/data paths. Manual dispatch remains
    available with an explicit expected main SHA.
-3. The publisher binds all seven working files to immutable Git blobs, checks
+3. The publisher binds all nine reviewed files to immutable Git blobs, checks
    that its source is still remote `main`, and preserves the explicit write gate,
    reviewed-record checks, training prohibition, public-visibility check and
    single-writer concurrency group. It uses the provider parent commit to detect
    competing writes and reads back every published byte at the returned revision.
 4. Completion of a main-branch publisher run triggers the independent alignment
    workflow. It reads the provider anonymously, pins one exact revision, verifies
-   the expected file inventory and all seven byte hashes, then rechecks the head.
+   the expected file inventory and all nine byte hashes, then rechecks the head.
 
 The automation does not merge PRs, change dataset visibility, delete extra Hub
 files, restart Spaces, train a model or admit records to Second Brain's retrieval

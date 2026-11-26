@@ -18,7 +18,8 @@ from szl_forum_corpus.cli import strict_json
 MAX_METADATA_BYTES = 256 * 1024
 MAX_FILE_BYTES = 1024 * 1024
 FILES = frozenset({"README.md", "manifest.json", "sources.public.jsonl", "needs.json",
-                   "hypotheses.json", "graph.json", "second_brain.candidates.jsonl"})
+                   "hypotheses.json", "graph.json", "second_brain.candidates.jsonl",
+                   "assets/szl-card/mesh-receipts.svg", "assets/szl-card/org-context.svg"})
 INFO_URL = f"https://huggingface.co/api/datasets/{REPO_ID}"
 Fetch = Callable[[str, int], bytes]
 
@@ -87,7 +88,7 @@ def audit_alignment(files: dict[str, bytes], source_sha: str, fetch: Fetch = fet
         "hf_revision": None, "head_stable": False,
         "files_sha256": {name: hashlib.sha256(data).hexdigest() for name, data in sorted(files.items())},
         "observed_files_sha256": {}, "missing_files": [], "unexpected_file_count": 0,
-        "mismatched_files": [], "coverage": "SEVEN_REVIEWED_PUBLIC_FILES",
+        "mismatched_files": [], "coverage": "NINE_REVIEWED_PUBLIC_FILES",
         "model_training_authorized": False, "provider_writes": False,
     }
     try:
@@ -100,7 +101,7 @@ def audit_alignment(files: dict[str, bytes], source_sha: str, fetch: Fetch = fet
             return receipt
         receipt["missing_files"] = sorted(FILES - pinned["files"])
         receipt["unexpected_file_count"] = len(pinned["files"] - FILES - {".gitattributes"})
-        # Only the seven fixed names can be read or enter the public receipt.
+        # Only the nine fixed names can be read or enter the public receipt.
         for name in sorted(FILES & pinned["files"]):
             url = f"https://huggingface.co/datasets/{REPO_ID}/resolve/{revision}/{name}"
             observed = _read(fetch, url, MAX_FILE_BYTES, "file_read")

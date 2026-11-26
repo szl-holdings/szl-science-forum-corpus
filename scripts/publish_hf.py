@@ -30,8 +30,12 @@ HEX_40 = re.compile(r"^[0-9a-f]{40}$")
 PUBLIC_FILE_NAMES = frozenset({
     "README.md", "graph.json", "hypotheses.json", "manifest.json", "needs.json",
     "second_brain.candidates.jsonl", "sources.public.jsonl",
+    "assets/szl-card/mesh-receipts.svg", "assets/szl-card/org-context.svg",
 })
-GENERATED_FILE_NAMES = PUBLIC_FILE_NAMES - {"README.md", "manifest.json"}
+GENERATED_FILE_NAMES = frozenset({
+    "graph.json", "hypotheses.json", "needs.json",
+    "second_brain.candidates.jsonl", "sources.public.jsonl",
+})
 
 
 def _provider_call(stage: str, operation: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
@@ -69,7 +73,10 @@ def public_files() -> dict[str, bytes]:
     records = read_records(SOURCE_INPUT)
     if not all(may_publish(record) for record in records):
         raise ValueError("source index includes a withheld or unreviewed record")
-    files = {path.name: path.read_bytes() for path in DATASET.iterdir() if path.is_file()}
+    files = {
+        path.relative_to(DATASET).as_posix(): path.read_bytes()
+        for path in DATASET.rglob("*") if path.is_file()
+    }
     _validate_public_files(files)
     return files
 
